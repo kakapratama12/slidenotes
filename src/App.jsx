@@ -26,6 +26,11 @@ function App() {
     goNext,
     goPrev,
     goTo,
+    zoom,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+    setZoomClamped,
     renderPage,
     renderThumbnail,
     captureSlide,
@@ -146,9 +151,14 @@ function App() {
             currentIndex={currentIndex}
             loading={loading}
             error={error}
+            zoom={zoom}
             onPrev={goPrev}
             onNext={goNext}
             onTryAnotherFile={handleTryAnotherFile}
+            onZoomIn={zoomIn}
+            onZoomOut={zoomOut}
+            onZoomReset={zoomReset}
+            onZoomChange={setZoomClamped}
             renderPage={renderPage}
             captureSlide={captureSlide}
           />

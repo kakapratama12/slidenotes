@@ -1,12 +1,25 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 3.0;
+const ZOOM_STEP = 0.25;
+
+function clampZoom(value) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
+
 export function useSlides(filePath) {
   const [pageCount, setPageCount] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const pdfDocRef = useRef(null);
+
+  useEffect(() => {
+    setZoom(1);
+  }, [currentIndex]);
 
   useEffect(() => {
     if (!filePath) {
@@ -77,6 +90,22 @@ export function useSlides(filePath) {
     goTo(currentIndex - 1);
   }, [currentIndex, goTo]);
 
+  const zoomIn = useCallback(() => {
+    setZoom((value) => clampZoom(value + ZOOM_STEP));
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    setZoom((value) => clampZoom(value - ZOOM_STEP));
+  }, []);
+
+  const zoomReset = useCallback(() => {
+    setZoom(1);
+  }, []);
+
+  const setZoomClamped = useCallback((value) => {
+    setZoom(clampZoom(value));
+  }, []);
+
   const renderPage = useCallback(async (index, canvas) => {
     const pdf = pdfDocRef.current;
     if (!pdf || !canvas) {
@@ -85,7 +114,10 @@ export function useSlides(filePath) {
 
     const page = await pdf.getPage(index + 1);
     const context = canvas.getContext('2d');
-    const containerWidth = canvas.parentElement?.clientWidth ?? 800;
+    const scrollContainer = canvas.closest('[data-slide-scroll]');
+    const containerWidth = scrollContainer?.clientWidth
+      ? scrollContainer.clientWidth - 32
+      : 800;
     const baseViewport = page.getViewport({ scale: 1 });
     const scale = containerWidth / baseViewport.width;
     const viewport = page.getViewport({ scale });
@@ -138,11 +170,16 @@ export function useSlides(filePath) {
   return {
     pageCount,
     currentIndex,
+    zoom,
     loading,
     error,
     goNext,
     goPrev,
     goTo,
+    zoomIn,
+    zoomOut,
+    zoomReset,
+    setZoomClamped,
     renderPage,
     renderThumbnail,
     captureSlide,
