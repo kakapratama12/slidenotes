@@ -1,17 +1,32 @@
 const fs = require('fs/promises');
 const path = require('path');
-const { PDFDocument, rgb } = require('pdf-lib');
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const {
+  darkenHighlightColor,
+  sortHighlightsByPosition,
+  getHighlightNumber,
+} = require('./highlightNumbering');
+const {
+  FONT_SIZE,
+  LINE_HEIGHT,
+  parseNoteToBlocks,
+  layoutBlocks,
+  estimateLaidOutHeight,
+  drawLaidOutText,
+  drawLaidOutTextUpward,
+  truncateLaidOut,
+} = require('./noteHtmlPdf');
 
 const A4_LANDSCAPE = [841.89, 595.28];
 const A4_PORTRAIT = [595.28, 841.89];
 const MARGIN = 40;
 const DEFAULT_IMAGE_RATIO = 0.6;
 const MIN_IMAGE_RATIO = 0.5;
-const LINE_HEIGHT = 14;
 const HEADING_GAP = 18;
 const SECTION_GAP = 12;
 const HIGHLIGHT_DOT_SIZE = 8;
-const HIGHLIGHT_TEXT_INDENT = 14;
+const HIGHLIGHT_ENTRY_INDENT = 52;
+const TEXT_MAX_WIDTH = 720;
 const VALID_LAYOUTS = new Set(['1-per-page', '2-per-page', 'notes-only']);
 
 function dataUrlToBuffer(dataUrl) {
@@ -60,6 +75,15 @@ function wrapNoteLines(text, maxChars = 90) {
   return lines;
 }
 
+async function loadFonts(pdfDoc) {
+  return {
+    regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+    bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    italic: await pdfDoc.embedFont(StandardFonts.HelveticaOblique),
+    boldItalic: await pdfDoc.embedFont(StandardFonts.HelveticaBoldOblique),
+  };
+}
+
 function getSlideCount(slideImages, notes) {
   const imageCount = slideImages.length;
   const noteKeys = Object.keys(notes ?? {});
@@ -71,36 +95,39 @@ function getSlideCount(slideImages, notes) {
   return Math.max(imageCount, noteCount);
 }
 
-function getHighlightsWithNotes(slideData) {
-  return (slideData?.highlights ?? []).filter((highlight) =>
-    String(highlight.note ?? '').trim(),
-  );
+function buildHighlightEntries(slideData) {
+  const highlights = slideData?.highlights ?? [];
+
+  return sortHighlightsByPosition(highlights)
+    .filter((highlight) => String(highlight.note ?? '').trim())
+    .map((highlight) => ({
+      number: getHighlightNumber(highlights, highlight.id),
+      color: highlight.color,
+      lines: wrapNoteLines(`"${String(highlight.note).trim()}"`, 78),
+    }));
 }
 
-function buildPageContent(noteText, slideData) {
-  const noteLines = wrapNoteLines(noteText);
-  const highlightsWithNotes = getHighlightsWithNotes(slideData).map((highlight) => ({
-    color: highlight.color,
-    lines: wrapNoteLines(highlight.note, 82),
-  }));
+function buildPageContent(noteText, slideData, fonts, maxWidth = TEXT_MAX_WIDTH) {
+  const noteBlocks = parseNoteToBlocks(noteText);
+  const noteLayout = layoutBlocks(noteBlocks, maxWidth, FONT_SIZE, fonts);
 
-  return { noteLines, highlightsWithNotes };
+  return {
+    noteLayout,
+    highlightEntries: buildHighlightEntries(slideData),
+  };
 }
 
 function estimateContentHeight(content) {
   let height = HEADING_GAP;
+  const noteHeight = estimateLaidOutHeight(content.noteLayout);
 
-  if (content.noteLines.length === 0) {
-    height += LINE_HEIGHT;
-  } else {
-    height += content.noteLines.length * LINE_HEIGHT;
-  }
+  height += noteHeight > 0 ? noteHeight : LINE_HEIGHT;
 
-  if (content.highlightsWithNotes.length > 0) {
+  if (content.highlightEntries.length > 0) {
     height += SECTION_GAP + HEADING_GAP;
 
-    for (const highlight of content.highlightsWithNotes) {
-      height += Math.max(highlight.lines.length, 1) * LINE_HEIGHT + 4;
+    for (const entry of content.highlightEntries) {
+      height += Math.max(entry.lines.length, 1) * LINE_HEIGHT + 4;
     }
   }
 
@@ -109,35 +136,50 @@ function estimateContentHeight(content) {
 
 function truncateContent(content, maxHeight) {
   const next = {
-    noteLines: [...content.noteLines],
-    highlightsWithNotes: content.highlightsWithNotes.map((item) => ({
-      color: item.color,
-      lines: [...item.lines],
+    noteLayout: content.noteLayout.map((block) => ({
+      ...block,
+      lines: block.lines.map((line) => [...line]),
+    })),
+    highlightEntries: content.highlightEntries.map((entry) => ({
+      ...entry,
+      lines: [...entry.lines],
     })),
   };
 
   while (estimateContentHeight(next) > maxHeight) {
-    const lastHighlight = next.highlightsWithNotes[next.highlightsWithNotes.length - 1];
+    const lastEntry = next.highlightEntries[next.highlightEntries.length - 1];
 
-    if (lastHighlight?.lines.length) {
-      lastHighlight.lines.pop();
-      if (lastHighlight.lines.length === 0) {
-        next.highlightsWithNotes.pop();
+    if (lastEntry?.lines.length) {
+      lastEntry.lines.pop();
+      if (lastEntry.lines.length === 0) {
+        next.highlightEntries.pop();
       }
       continue;
     }
 
-    if (next.highlightsWithNotes.length) {
-      next.highlightsWithNotes.pop();
+    if (next.highlightEntries.length) {
+      next.highlightEntries.pop();
       continue;
     }
 
-    if (next.noteLines.length) {
-      next.noteLines.pop();
+    if (next.noteLayout.length) {
+      const lastBlock = next.noteLayout[next.noteLayout.length - 1];
+      if (lastBlock.lines.length) {
+        lastBlock.lines.pop();
+        if (lastBlock.lines.length === 0) {
+          next.noteLayout.pop();
+        }
+      } else {
+        next.noteLayout.pop();
+      }
       continue;
     }
 
     break;
+  }
+
+  if (estimateLaidOutHeight(next.noteLayout) > maxHeight) {
+    next.noteLayout = truncateLaidOut(next.noteLayout, maxHeight);
   }
 
   return next;
@@ -177,12 +219,146 @@ function resolveLayout(pageHeight, content, options = {}) {
   };
 }
 
-function drawTextBlock(page, { content, totalSlides, index, textOptions = {} }) {
+function drawHighlightNumbers(page, {
+  highlights,
+  imageX,
+  imageY,
+  imageWidth,
+  imageHeight,
+  fonts,
+}) {
+  for (const highlight of highlights) {
+    const number = getHighlightNumber(highlights, highlight.id);
+    if (!number) {
+      continue;
+    }
+
+    const label = String(number);
+    const badgeWidth = 10 + label.length * 7;
+    const badgeHeight = 16;
+    const badgeX = imageX + highlight.x * imageWidth + 4;
+    const badgeY = imageY + imageHeight - highlight.y * imageHeight - badgeHeight - 4;
+
+    page.drawRectangle({
+      x: badgeX,
+      y: badgeY,
+      width: badgeWidth,
+      height: badgeHeight,
+      color: hexToRgb(darkenHighlightColor(highlight.color)),
+    });
+
+    const textWidth = fonts.bold.widthOfTextAtSize(label, 9);
+    page.drawText(label, {
+      x: badgeX + (badgeWidth - textWidth) / 2,
+      y: badgeY + 4,
+      size: 9,
+      font: fonts.bold,
+      color: rgb(1, 1, 1),
+    });
+  }
+}
+
+function drawHighlightEntryUpward(page, entry, x, textY, fonts) {
+  const lines = entry.lines.length > 0 ? entry.lines : ['""'];
+  const label = `[${entry.number}]`;
+  const labelWidth = fonts.bold.widthOfTextAtSize(label, FONT_SIZE);
+  let y = textY;
+
+  for (let lineIndex = lines.length - 1; lineIndex >= 0; lineIndex -= 1) {
+    if (lineIndex === lines.length - 1) {
+      page.drawText(label, {
+        x,
+        y,
+        size: FONT_SIZE,
+        font: fonts.bold,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+
+      page.drawRectangle({
+        x: x + labelWidth + 6,
+        y: y - 1,
+        width: HIGHLIGHT_DOT_SIZE,
+        height: HIGHLIGHT_DOT_SIZE,
+        color: hexToRgb(entry.color),
+      });
+
+      page.drawText(lines[lineIndex], {
+        x: x + labelWidth + 6 + HIGHLIGHT_DOT_SIZE + 6,
+        y,
+        size: FONT_SIZE,
+        font: fonts.regular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+    } else {
+      page.drawText(lines[lineIndex], {
+        x: x + HIGHLIGHT_ENTRY_INDENT,
+        y,
+        size: FONT_SIZE,
+        font: fonts.regular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+    }
+
+    y += LINE_HEIGHT;
+  }
+
+  return y + 4;
+}
+
+function drawHighlightEntryDownward(page, entry, x, y, fonts) {
+  const lines = entry.lines.length > 0 ? entry.lines : ['""'];
+  const label = `[${entry.number}]`;
+  const labelWidth = fonts.bold.widthOfTextAtSize(label, FONT_SIZE);
+  let cursorY = y;
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    if (lineIndex === 0) {
+      page.drawText(label, {
+        x,
+        y: cursorY,
+        size: FONT_SIZE,
+        font: fonts.bold,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+
+      page.drawRectangle({
+        x: x + labelWidth + 6,
+        y: cursorY - 1,
+        width: HIGHLIGHT_DOT_SIZE,
+        height: HIGHLIGHT_DOT_SIZE,
+        color: hexToRgb(entry.color),
+      });
+
+      page.drawText(lines[lineIndex], {
+        x: x + labelWidth + 6 + HIGHLIGHT_DOT_SIZE + 6,
+        y: cursorY,
+        size: FONT_SIZE,
+        font: fonts.regular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+    } else {
+      page.drawText(lines[lineIndex], {
+        x: x + HIGHLIGHT_ENTRY_INDENT,
+        y: cursorY,
+        size: FONT_SIZE,
+        font: fonts.regular,
+        color: rgb(0.15, 0.15, 0.15),
+      });
+    }
+
+    cursorY -= LINE_HEIGHT + 2;
+  }
+
+  return cursorY;
+}
+
+function drawTextBlock(page, { content, totalSlides, index, fonts, textOptions = {} }) {
   const {
     textBaseY = MARGIN + 40,
     footerY = 24,
     showPageFooter = true,
     yOffset = 0,
+    maxWidth = TEXT_MAX_WIDTH,
   } = textOptions;
 
   const baseY = textBaseY + yOffset;
@@ -199,34 +375,12 @@ function drawTextBlock(page, { content, totalSlides, index, textOptions = {} }) 
 
   let textY = baseY;
 
-  for (let highlightIndex = content.highlightsWithNotes.length - 1; highlightIndex >= 0; highlightIndex -= 1) {
-    const highlight = content.highlightsWithNotes[highlightIndex];
-    const lines = highlight.lines.length > 0 ? highlight.lines : [''];
-
-    for (let lineIndex = lines.length - 1; lineIndex >= 0; lineIndex -= 1) {
-      page.drawRectangle({
-        x: MARGIN,
-        y: textY - 2,
-        width: HIGHLIGHT_DOT_SIZE,
-        height: HIGHLIGHT_DOT_SIZE,
-        color: hexToRgb(highlight.color),
-      });
-
-      page.drawText(lines[lineIndex], {
-        x: MARGIN + HIGHLIGHT_TEXT_INDENT,
-        y: textY,
-        size: 10,
-        color: rgb(0.15, 0.15, 0.15),
-      });
-
-      textY += LINE_HEIGHT;
-    }
-
-    textY += 4;
+  for (let entryIndex = content.highlightEntries.length - 1; entryIndex >= 0; entryIndex -= 1) {
+    textY = drawHighlightEntryUpward(page, content.highlightEntries[entryIndex], MARGIN, textY, fonts);
   }
 
-  if (content.highlightsWithNotes.length > 0) {
-    page.drawText('Highlights:', {
+  if (content.highlightEntries.length > 0) {
+    page.drawText('Highlight Notes:', {
       x: MARGIN,
       y: textY,
       size: 12,
@@ -235,24 +389,21 @@ function drawTextBlock(page, { content, totalSlides, index, textOptions = {} }) 
     textY += HEADING_GAP + SECTION_GAP;
   }
 
-  if (content.noteLines.length === 0) {
+  if (content.noteLayout.length === 0) {
     page.drawText('—', {
       x: MARGIN,
       y: textY,
-      size: 10,
+      size: FONT_SIZE,
       color: rgb(0.55, 0.55, 0.55),
     });
     textY += LINE_HEIGHT;
   } else {
-    for (let lineIndex = content.noteLines.length - 1; lineIndex >= 0; lineIndex -= 1) {
-      page.drawText(content.noteLines[lineIndex], {
-        x: MARGIN,
-        y: textY,
-        size: 10,
-        color: rgb(0.15, 0.15, 0.15),
-      });
-      textY += LINE_HEIGHT;
-    }
+    textY = drawLaidOutTextUpward(page, content.noteLayout, {
+      x: MARGIN,
+      startY: textY,
+      rgb,
+      fontSize: FONT_SIZE,
+    });
   }
 
   page.drawText('Notes:', {
@@ -268,6 +419,7 @@ async function drawSlideOnPage(page, pdfDoc, {
   totalSlides,
   slideImages,
   notes,
+  fonts,
   pageWidth,
   pageHeight,
   layoutOptions,
@@ -275,7 +427,7 @@ async function drawSlideOnPage(page, pdfDoc, {
   yOffset = 0,
 }) {
   const slideData = notes[String(index)] ?? {};
-  const pageContent = buildPageContent(slideData.note ?? '', slideData);
+  const pageContent = buildPageContent(slideData.note ?? '', slideData, fonts, textOptions.maxWidth);
   const layout = resolveLayout(pageHeight, pageContent, layoutOptions);
 
   const imageBytes = dataUrlToBuffer(slideImages[index]);
@@ -297,10 +449,20 @@ async function drawSlideOnPage(page, pdfDoc, {
     height: imageHeight,
   });
 
+  drawHighlightNumbers(page, {
+    highlights: slideData.highlights ?? [],
+    imageX,
+    imageY,
+    imageWidth,
+    imageHeight,
+    fonts,
+  });
+
   drawTextBlock(page, {
     content: layout.content,
     totalSlides,
     index,
+    fonts,
     textOptions: {
       ...textOptions,
       yOffset,
@@ -308,7 +470,7 @@ async function drawSlideOnPage(page, pdfDoc, {
   });
 }
 
-async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides }) {
+async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides, fonts }) {
   for (let index = 0; index < totalSlides; index += 1) {
     const page = pdfDoc.addPage(A4_LANDSCAPE);
     const { width, height } = page.getSize();
@@ -318,6 +480,7 @@ async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides }) {
       totalSlides,
       slideImages,
       notes,
+      fonts,
       pageWidth: width,
       pageHeight: height,
       textOptions: { showPageFooter: true },
@@ -325,7 +488,7 @@ async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides }) {
   }
 }
 
-async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides }) {
+async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides, fonts }) {
   const halfLayoutOptions = {
     minImageRatio: 0.32,
     maxImageRatio: 0.46,
@@ -337,6 +500,7 @@ async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides }) {
     textBaseY: MARGIN + 28,
     footerY: 12,
     showPageFooter: true,
+    maxWidth: 360,
   };
 
   for (let index = 0; index < totalSlides; index += 2) {
@@ -349,6 +513,7 @@ async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides }) {
       totalSlides,
       slideImages,
       notes,
+      fonts,
       pageWidth: width,
       pageHeight: halfHeight,
       layoutOptions: halfLayoutOptions,
@@ -362,6 +527,7 @@ async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides }) {
         totalSlides,
         slideImages,
         notes,
+        fonts,
         pageWidth: width,
         pageHeight: halfHeight,
         layoutOptions: halfLayoutOptions,
@@ -381,25 +547,22 @@ async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides }) {
 
 function estimateNotesOnlyBlockHeight(content) {
   let height = 28 + HEADING_GAP;
+  const noteHeight = estimateLaidOutHeight(content.noteLayout);
 
-  if (content.noteLines.length === 0) {
-    height += LINE_HEIGHT;
-  } else {
-    height += content.noteLines.length * LINE_HEIGHT;
-  }
+  height += noteHeight > 0 ? noteHeight : LINE_HEIGHT;
 
-  if (content.highlightsWithNotes.length > 0) {
+  if (content.highlightEntries.length > 0) {
     height += SECTION_GAP + HEADING_GAP;
 
-    for (const highlight of content.highlightsWithNotes) {
-      height += Math.max(highlight.lines.length, 1) * LINE_HEIGHT + 4;
+    for (const entry of content.highlightEntries) {
+      height += Math.max(entry.lines.length, 1) * LINE_HEIGHT + 4;
     }
   }
 
   return height + 24;
 }
 
-function drawNotesOnlySlide(page, { content, index, totalSlides, startY, pageWidth }) {
+function drawNotesOnlySlide(page, { content, index, totalSlides, startY, fonts }) {
   let y = startY;
 
   page.drawText(`Slide ${index + 1} / ${totalSlides}`, {
@@ -418,7 +581,7 @@ function drawNotesOnlySlide(page, { content, index, totalSlides, startY, pageWid
   });
   y -= 22;
 
-  if (content.noteLines.length === 0) {
+  if (content.noteLayout.length === 0) {
     page.drawText('—', {
       x: MARGIN,
       y: y - 10,
@@ -427,20 +590,18 @@ function drawNotesOnlySlide(page, { content, index, totalSlides, startY, pageWid
     });
     y -= LINE_HEIGHT + 4;
   } else {
-    for (const line of content.noteLines) {
-      page.drawText(line, {
-        x: MARGIN,
-        y: y - 10,
-        size: 11,
-        color: rgb(0.15, 0.15, 0.15),
-      });
-      y -= LINE_HEIGHT + 2;
-    }
+    y = drawLaidOutText(page, content.noteLayout, {
+      x: MARGIN,
+      startY: y - 10,
+      rgb,
+      fontSize: 11,
+    });
+    y -= 4;
   }
 
-  if (content.highlightsWithNotes.length > 0) {
+  if (content.highlightEntries.length > 0) {
     y -= SECTION_GAP;
-    page.drawText('Highlights:', {
+    page.drawText('Highlight Notes:', {
       x: MARGIN,
       y: y - 12,
       size: 12,
@@ -448,28 +609,8 @@ function drawNotesOnlySlide(page, { content, index, totalSlides, startY, pageWid
     });
     y -= 22;
 
-    for (const highlight of content.highlightsWithNotes) {
-      const lines = highlight.lines.length > 0 ? highlight.lines : [''];
-
-      for (const line of lines) {
-        page.drawRectangle({
-          x: MARGIN,
-          y: y - 10,
-          width: HIGHLIGHT_DOT_SIZE,
-          height: HIGHLIGHT_DOT_SIZE,
-          color: hexToRgb(highlight.color),
-        });
-
-        page.drawText(line, {
-          x: MARGIN + HIGHLIGHT_TEXT_INDENT,
-          y: y - 10,
-          size: 11,
-          color: rgb(0.15, 0.15, 0.15),
-        });
-
-        y -= LINE_HEIGHT + 2;
-      }
-
+    for (const entry of content.highlightEntries) {
+      y = drawHighlightEntryDownward(page, entry, MARGIN, y - 10, fonts);
       y -= 4;
     }
   }
@@ -477,14 +618,14 @@ function drawNotesOnlySlide(page, { content, index, totalSlides, startY, pageWid
   return y;
 }
 
-async function exportNotesOnly(pdfDoc, { notes, totalSlides }) {
+async function exportNotesOnly(pdfDoc, { notes, totalSlides, fonts }) {
   let page = pdfDoc.addPage(A4_PORTRAIT);
   let { width, height } = page.getSize();
   let y = height - MARGIN;
 
   for (let index = 0; index < totalSlides; index += 1) {
     const slideData = notes[String(index)] ?? {};
-    const content = buildPageContent(slideData.note ?? '', slideData);
+    const content = buildPageContent(slideData.note ?? '', slideData, fonts);
     const blockHeight = estimateNotesOnlyBlockHeight(content);
 
     if (y - blockHeight < MARGIN + 40) {
@@ -493,7 +634,7 @@ async function exportNotesOnly(pdfDoc, { notes, totalSlides }) {
       y = height - MARGIN;
     }
 
-    y = drawNotesOnlySlide(page, { content, index, totalSlides, startY: y, pageWidth: width });
+    y = drawNotesOnlySlide(page, { content, index, totalSlides, startY: y, fonts });
 
     if (index < totalSlides - 1) {
       y -= 12;
@@ -518,6 +659,7 @@ async function exportNotesOnly(pdfDoc, { notes, totalSlides }) {
 async function exportNotesPdf({ filePath, slideImages, notes, layout = '1-per-page' }) {
   const exportLayout = VALID_LAYOUTS.has(layout) ? layout : '1-per-page';
   const pdfDoc = await PDFDocument.create();
+  const fonts = await loadFonts(pdfDoc);
   const totalSlides = getSlideCount(slideImages, notes);
 
   if (totalSlides === 0) {
@@ -525,11 +667,11 @@ async function exportNotesPdf({ filePath, slideImages, notes, layout = '1-per-pa
   }
 
   if (exportLayout === 'notes-only') {
-    await exportNotesOnly(pdfDoc, { notes, totalSlides });
+    await exportNotesOnly(pdfDoc, { notes, totalSlides, fonts });
   } else if (exportLayout === '2-per-page') {
-    await exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides });
+    await exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides, fonts });
   } else {
-    await exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides });
+    await exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides, fonts });
   }
 
   const parsed = path.parse(filePath);
