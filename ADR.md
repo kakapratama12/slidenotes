@@ -64,5 +64,14 @@ Baca sebelum membuat keputusan arsitektur baru.
 
 ---
 
+### ADR-05: IPC `set-window-title` untuk native title bar
+- **Status:** accepted
+- **Task:** S4-01
+- **Konteks:** Window title harus menampilkan nama file PDF yang sedang dibuka. Renderer tidak bisa memanggil `mainWindow.setTitle()` langsung.
+- **Keputusan:** Tambah IPC channel `set-window-title` yang dipanggil dari `App.jsx` saat `filePath` berubah. Format title: `SlideNotes — lecture.pdf`.
+- **Konsekuensi:** Setiap perubahan pola title bar harus lewat channel ini. AGENT.md IPC contract sudah di-update.
+
+---
+
 *Tambahkan ADR baru setiap kali ada keputusan teknis yang tidak ada di spec awal.*
 *Format: ADR-XX dengan nomor urut berikutnya.*
