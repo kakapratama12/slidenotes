@@ -934,7 +934,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S8-03: Pan Slide saat Zoom In
+### ✅ S8-03: Pan Slide saat Zoom In
 
 Buat branch baru:
 ```
@@ -1043,7 +1043,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 - [x] S8-01 Toolbar redesign & draw mode
 - [x] S8-02 Move & resize highlight
-- [ ] S8-03 Pan slide saat zoom in
+- [x] S8-03 Pan slide saat zoom in
 - [ ] S8-04 Draggable panel divider
 
 ---

@@ -47,6 +47,9 @@ export default function HighlightOverlay({
   height,
   highlights,
   drawColor,
+  enablePan,
+  isPanning,
+  onPanPointerDown,
   selectedId,
   onSelect,
   onCreate,
@@ -218,6 +221,11 @@ export default function HighlightOverlay({
         return;
       }
 
+      if (enablePan && event.target === svgRef.current) {
+        onPanPointerDown?.(event);
+        return;
+      }
+
       if (!drawMode || !svgRef.current || width === 0 || height === 0) {
         return;
       }
@@ -230,7 +238,7 @@ export default function HighlightOverlay({
       const point = getLocalPoint(event, svgRef.current);
       setDraft({ startX: point.x, startY: point.y, currentX: point.x, currentY: point.y });
     },
-    [dragState, drawMode, width, height],
+    [dragState, drawMode, enablePan, onPanPointerDown, width, height],
   );
 
   const handlePointerMove = useCallback(
@@ -350,6 +358,9 @@ export default function HighlightOverlay({
         width={width}
         height={height}
         className="absolute left-0 top-0 touch-none"
+        style={{
+          cursor: enablePan ? (isPanning ? 'grabbing' : 'grab') : undefined,
+        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

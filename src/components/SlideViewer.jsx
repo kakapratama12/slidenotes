@@ -1,5 +1,6 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
-import { toolToDrawColor } from '../constants/highlightTools.js';
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { CURSOR_TOOL, toolToDrawColor } from '../constants/highlightTools.js';
+import { clampPanOffset } from '../utils/slidePan.js';
 import HighlightOverlay from './HighlightOverlay.jsx';
 import HighlightToolbar from './HighlightToolbar.jsx';
 
@@ -36,11 +37,135 @@ const SlideViewer = forwardRef(function SlideViewer(
   const [rendering, setRendering] = useState(false);
   const [resizeTick, setResizeTick] = useState(0);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panSessionRef = useRef(null);
 
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
   const zoomPercent = Math.round(zoom * 100);
   const drawColor = toolToDrawColor(activeTool);
+  const isCursorTool = activeTool === CURSOR_TOOL;
+  const canPan = zoom > 1 && isCursorTool;
+
+  const getPanBounds = useCallback(() => {
+    const container = scrollRef.current;
+    if (!container || canvasSize.width === 0 || canvasSize.height === 0) {
+      return null;
+    }
+
+    const styles = getComputedStyle(container);
+    const paddingX =
+      Number.parseFloat(styles.paddingLeft) + Number.parseFloat(styles.paddingRight);
+    const paddingY =
+      Number.parseFloat(styles.paddingTop) + Number.parseFloat(styles.paddingBottom);
+
+    return {
+      containerWidth: container.clientWidth - paddingX,
+      containerHeight: container.clientHeight - paddingY,
+      contentWidth: canvasSize.width * zoom,
+      contentHeight: canvasSize.height * zoom,
+    };
+  }, [canvasSize.height, canvasSize.width, zoom]);
+
+  const applyPan = useCallback(
+    (nextX, nextY) => {
+      const bounds = getPanBounds();
+      if (!bounds) {
+        setPan({ x: 0, y: 0 });
+        return;
+      }
+
+      setPan(
+        clampPanOffset(
+          nextX,
+          nextY,
+          bounds.containerWidth,
+          bounds.containerHeight,
+          bounds.contentWidth,
+          bounds.contentHeight,
+        ),
+      );
+    },
+    [getPanBounds],
+  );
+
+  useEffect(() => {
+    setPan({ x: 0, y: 0 });
+    setIsPanning(false);
+    panSessionRef.current = null;
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (zoom <= 1) {
+      setPan({ x: 0, y: 0 });
+      setIsPanning(false);
+      panSessionRef.current = null;
+    }
+  }, [zoom]);
+
+  useEffect(() => {
+    if (!isPanning) {
+      return undefined;
+    }
+
+    const handlePointerMove = (event) => {
+      const session = panSessionRef.current;
+      if (!session) {
+        return;
+      }
+
+      const deltaX = event.clientX - session.startClientX;
+      const deltaY = event.clientY - session.startClientY;
+      applyPan(session.startPanX + deltaX, session.startPanY + deltaY);
+    };
+
+    const endPan = () => {
+      panSessionRef.current = null;
+      setIsPanning(false);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', endPan);
+    window.addEventListener('pointercancel', endPan);
+
+    return () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', endPan);
+      window.removeEventListener('pointercancel', endPan);
+    };
+  }, [isPanning, applyPan]);
+
+  const handlePanPointerDown = useCallback(
+    (event) => {
+      if (!canPan) {
+        return;
+      }
+
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      panSessionRef.current = {
+        startClientX: event.clientX,
+        startClientY: event.clientY,
+        startPanX: pan.x,
+        startPanY: pan.y,
+      };
+      setIsPanning(true);
+    },
+    [canPan, pan.x, pan.y],
+  );
+
+  const handleScrollPointerDown = useCallback(
+    (event) => {
+      if (!canPan || event.target !== scrollRef.current) {
+        return;
+      }
+
+      handlePanPointerDown(event);
+    },
+    [canPan, handlePanPointerDown],
+  );
 
   useImperativeHandle(
     ref,
@@ -189,13 +314,18 @@ const SlideViewer = forwardRef(function SlideViewer(
       <div
         ref={scrollRef}
         data-slide-scroll
-        className="relative min-h-0 flex-1 overflow-auto rounded-lg bg-slate-50 p-4"
+        className={`relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-50 p-4 ${
+          canPan && !isPanning ? 'cursor-grab' : ''
+        } ${canPan && isPanning ? 'cursor-grabbing' : ''}`}
+        onPointerDown={handleScrollPointerDown}
       >
         <div
           className={`relative inline-block origin-top-left shadow-sm ${
             drawColor ? 'cursor-crosshair' : ''
           }`}
-          style={{ transform: `scale(${zoom})` }}
+          style={{
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+          }}
         >
           <canvas ref={canvasRef} className="block" />
           <HighlightOverlay
@@ -203,6 +333,9 @@ const SlideViewer = forwardRef(function SlideViewer(
             height={canvasSize.height}
             highlights={highlights}
             drawColor={drawColor}
+            enablePan={canPan}
+            isPanning={isPanning}
+            onPanPointerDown={handlePanPointerDown}
             selectedId={selectedHighlightId}
             onSelect={onSelectHighlight}
             onCreate={onAddHighlight}
