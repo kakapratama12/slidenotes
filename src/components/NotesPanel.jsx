@@ -10,15 +10,52 @@ function SaveStatus({ status }) {
   return <p className="text-sm text-green-600">✓ Saved</p>;
 }
 
-export default function NotesPanel({ currentIndex, notes, saveStatus, onNoteChange }) {
+function ExportStatus({ status, message }) {
+  if (!status || status === 'idle') {
+    return null;
+  }
+
+  if (status === 'exporting') {
+    return <p className="text-sm text-slate-500">{message}</p>;
+  }
+
+  if (status === 'error') {
+    return <p className="text-sm text-red-600">{message}</p>;
+  }
+
+  return <p className="text-sm text-green-600">{message}</p>;
+}
+
+export default function NotesPanel({
+  currentIndex,
+  notes,
+  saveStatus,
+  onNoteChange,
+  onExport,
+  exportStatus,
+  exportMessage,
+}) {
   const slideKey = String(currentIndex);
   const noteValue = notes[slideKey]?.note ?? '';
+  const isExporting = exportStatus === 'exporting';
 
   return (
     <aside className="flex w-[35%] max-w-md shrink-0 flex-col border-l border-slate-200 bg-white p-4">
-      <h2 className="text-sm font-semibold text-slate-800">
-        Notes — Slide {currentIndex + 1}
-      </h2>
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold text-slate-800">
+          Notes — Slide {currentIndex + 1}
+        </h2>
+        <button
+          type="button"
+          onClick={onExport}
+          disabled={isExporting}
+          className="shrink-0 rounded bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isExporting ? 'Exporting...' : 'Export PDF'}
+        </button>
+      </div>
+
+      <ExportStatus status={exportStatus} message={exportMessage} />
 
       <textarea
         className="mt-3 min-h-0 flex-1 resize-none rounded-lg border border-slate-200 p-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"

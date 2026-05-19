@@ -94,6 +94,29 @@ export function useSlides(filePath) {
     await page.render({ canvasContext: context, viewport }).promise;
   }, []);
 
+  const captureSlide = useCallback(async (index) => {
+    const pdf = pdfDocRef.current;
+    if (!pdf) {
+      return null;
+    }
+
+    const page = await pdf.getPage(index + 1);
+    const baseViewport = page.getViewport({ scale: 1 });
+    const scale = 900 / baseViewport.width;
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({
+      canvasContext: canvas.getContext('2d'),
+      viewport,
+    }).promise;
+
+    return canvas.toDataURL('image/png');
+  }, []);
+
   const renderThumbnail = useCallback(async (index, canvas) => {
     const pdf = pdfDocRef.current;
     if (!pdf || !canvas) {
@@ -120,5 +143,6 @@ export function useSlides(filePath) {
     goTo,
     renderPage,
     renderThumbnail,
+    captureSlide,
   };
 }

@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs/promises');
 const path = require('path');
+const { exportNotesPdf } = require('./exporter');
 
 function getNotesJsonPath(filePath) {
   const parsed = path.parse(filePath);
@@ -60,8 +61,14 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('export-pdf', async () => {
-    return { ok: true, exportPath: '' };
+  ipcMain.handle('export-pdf', async (_event, { filePath, slideImages, notes }) => {
+    try {
+      const exportPath = await exportNotesPdf({ filePath, slideImages, notes });
+      return { ok: true, exportPath };
+    } catch (error) {
+      console.error('export-pdf failed:', error);
+      return { ok: false, error: error.message };
+    }
   });
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import DropZone from './components/DropZone.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
@@ -8,6 +8,9 @@ import { useSlides } from './hooks/useSlides.js';
 
 function App() {
   const [filePath, setFilePath] = useState(null);
+  const [exportStatus, setExportStatus] = useState('idle');
+  const [exportMessage, setExportMessage] = useState('');
+  const slideViewerRef = useRef(null);
 
   const {
     pageCount,
@@ -19,6 +22,7 @@ function App() {
     goTo,
     renderPage,
     renderThumbnail,
+    captureSlide,
   } = useSlides(filePath);
 
   const { notes, updateNote, saveStatus, hydrateNotes } = useNotes(filePath);
@@ -60,6 +64,37 @@ function App() {
     };
   }, [filePath, hydrateNotes]);
 
+  const handleExportPdf = async () => {
+    if (!filePath || pageCount === 0 || !slideViewerRef.current) {
+      return;
+    }
+
+    setExportStatus('exporting');
+    setExportMessage('Exporting...');
+
+    try {
+      const slideImages = [];
+
+      for (let index = 0; index < pageCount; index += 1) {
+        const image = await slideViewerRef.current.captureSlide(index);
+        slideImages.push(image);
+      }
+
+      const result = await window.electronAPI.exportPdf(filePath, slideImages, notes);
+
+      if (result?.ok) {
+        setExportStatus('success');
+        setExportMessage(`Saved to ${result.exportPath}`);
+      } else {
+        setExportStatus('error');
+        setExportMessage(result?.error ?? 'Export failed');
+      }
+    } catch {
+      setExportStatus('error');
+      setExportMessage('Export failed');
+    }
+  };
+
   if (filePath === null) {
     return <DropZone onFileSelected={setFilePath} />;
   }
@@ -76,6 +111,7 @@ function App() {
 
       <main className="flex min-w-0 flex-1 flex-col p-4">
         <SlideViewer
+          ref={slideViewerRef}
           pageCount={pageCount}
           currentIndex={currentIndex}
           loading={loading}
@@ -83,6 +119,7 @@ function App() {
           onPrev={goPrev}
           onNext={goNext}
           renderPage={renderPage}
+          captureSlide={captureSlide}
         />
       </main>
 
@@ -91,6 +128,9 @@ function App() {
         notes={notes}
         saveStatus={saveStatus}
         onNoteChange={updateNote}
+        onExport={handleExportPdf}
+        exportStatus={exportStatus}
+        exportMessage={exportMessage}
       />
     </div>
   );

@@ -1,19 +1,31 @@
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 
-export default function SlideViewer({
-  pageCount,
-  currentIndex,
-  loading,
-  error,
-  onPrev,
-  onNext,
-  renderPage,
-}) {
+const SlideViewer = forwardRef(function SlideViewer(
+  {
+    pageCount,
+    currentIndex,
+    loading,
+    error,
+    onPrev,
+    onNext,
+    renderPage,
+    captureSlide,
+  },
+  ref,
+) {
   const canvasRef = useRef(null);
   const [rendering, setRendering] = useState(false);
 
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      captureSlide: (index) => captureSlide(index),
+    }),
+    [captureSlide],
+  );
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -110,4 +122,6 @@ export default function SlideViewer({
       </div>
     </div>
   );
-}
+});
+
+export default SlideViewer;
