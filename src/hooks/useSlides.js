@@ -94,6 +94,22 @@ export function useSlides(filePath) {
     await page.render({ canvasContext: context, viewport }).promise;
   }, []);
 
+  const renderThumbnail = useCallback(async (index, canvas) => {
+    const pdf = pdfDocRef.current;
+    if (!pdf || !canvas) {
+      return;
+    }
+
+    const page = await pdf.getPage(index + 1);
+    const context = canvas.getContext('2d');
+    const viewport = page.getViewport({ scale: 0.2 });
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    await page.render({ canvasContext: context, viewport }).promise;
+  }, []);
+
   return {
     pageCount,
     currentIndex,
@@ -103,5 +119,6 @@ export function useSlides(filePath) {
     goPrev,
     goTo,
     renderPage,
+    renderThumbnail,
   };
 }

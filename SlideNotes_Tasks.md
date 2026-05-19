@@ -222,7 +222,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S2-03: Thumbnail Sidebar
+### ✅ S2-03: Thumbnail Sidebar
 
 Buat branch baru:
 ```
@@ -477,7 +477,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S1-02 IPC bridge
 - [x] S2-01 File open
 - [x] S2-02 Slide rendering
-- [ ] S2-03 Thumbnail sidebar
+- [x] S2-03 Thumbnail sidebar
 - [ ] S3-01 Notes panel + auto-save
 - [ ] S3-02 Persistent notes
 - [ ] S3-03 Export PDF

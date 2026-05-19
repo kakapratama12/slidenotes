@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import DropZone from './components/DropZone.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
+import ThumbnailBar from './components/ThumbnailBar.jsx';
 import { useSlides } from './hooks/useSlides.js';
 
 function App() {
@@ -15,7 +16,9 @@ function App() {
     error,
     goNext,
     goPrev,
+    goTo,
     renderPage,
+    renderThumbnail,
   } = useSlides(filePath);
 
   if (filePath === null) {
@@ -24,11 +27,13 @@ function App() {
 
   return (
     <div className="flex h-screen bg-slate-100">
-      <aside className="w-[220px] shrink-0 border-r border-slate-200 bg-white p-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Thumbnails
-        </p>
-      </aside>
+      <ThumbnailBar
+        pageCount={pageCount}
+        currentIndex={currentIndex}
+        loading={loading}
+        onSelect={goTo}
+        renderThumbnail={renderThumbnail}
+      />
 
       <main className="flex min-w-0 flex-1 flex-col p-4">
         <SlideViewer
