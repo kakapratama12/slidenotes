@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { HIGHLIGHT_FILL_OPACITY } from '../constants/highlightColors.js';
+import {
+  getHighlightStrokeColor,
+  HIGHLIGHT_FILL_OPACITY,
+} from '../constants/highlightColors.js';
 import {
   getHandleCenter,
   HANDLE_CURSORS,
@@ -221,6 +224,11 @@ export default function HighlightOverlay({
         return;
       }
 
+      if (!drawMode && event.target === svgRef.current) {
+        onSelect(null);
+        dismissPopup();
+      }
+
       if (enablePan && event.target === svgRef.current) {
         onPanPointerDown?.(event);
         return;
@@ -238,7 +246,7 @@ export default function HighlightOverlay({
       const point = getLocalPoint(event, svgRef.current);
       setDraft({ startX: point.x, startY: point.y, currentX: point.x, currentY: point.y });
     },
-    [dragState, drawMode, enablePan, onPanPointerDown, width, height],
+    [dragState, drawMode, dismissPopup, enablePan, onPanPointerDown, onSelect, width, height],
   );
 
   const handlePointerMove = useCallback(
@@ -393,8 +401,8 @@ export default function HighlightOverlay({
                 height={pixelH}
                 fill={highlight.color}
                 fillOpacity={HIGHLIGHT_FILL_OPACITY}
-                stroke={isSelected ? '#1e293b' : highlight.color}
-                strokeWidth={isSelected ? 2 : 1}
+                stroke={getHighlightStrokeColor(highlight.color, isSelected)}
+                strokeWidth={isSelected ? 3 : 1}
                 style={{
                   pointerEvents: drawMode ? 'none' : 'auto',
                   cursor: drawMode ? 'default' : 'move',

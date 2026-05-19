@@ -7,3 +7,15 @@ export const HIGHLIGHT_COLORS = [
 ];
 
 export const HIGHLIGHT_FILL_OPACITY = 0.4;
+
+export function getHighlightStrokeColor(hex, isSelected) {
+  if (!isSelected) {
+    return hex;
+  }
+
+  const r = Math.round(Number.parseInt(hex.slice(1, 3), 16) * 0.55);
+  const g = Math.round(Number.parseInt(hex.slice(3, 5), 16) * 0.55);
+  const b = Math.round(Number.parseInt(hex.slice(5, 7), 16) * 0.55);
+
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}

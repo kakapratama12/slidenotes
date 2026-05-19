@@ -149,16 +149,34 @@ function App() {
       if (event.metaKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
         setSearchOpen((open) => !open);
+        return;
       }
 
       if (event.key === 'Escape') {
         setActiveTool(CURSOR_TOOL);
+        return;
+      }
+
+      if (
+        (event.key === 'Delete' || event.key === 'Backspace') &&
+        selectedHighlightId &&
+        activeTool === CURSOR_TOOL &&
+        filePath !== null
+      ) {
+        const activeTag = document.activeElement?.tagName;
+        if (activeTag === 'TEXTAREA' || activeTag === 'INPUT') {
+          return;
+        }
+
+        event.preventDefault();
+        deleteHighlight(currentIndex, selectedHighlightId);
+        setSelectedHighlightId(null);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [selectedHighlightId, activeTool, filePath, currentIndex, deleteHighlight]);
 
   const handleTryAnotherFile = () => {
     setFilePath(null);
