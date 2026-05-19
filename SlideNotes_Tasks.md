@@ -411,7 +411,7 @@ git checkout -b feature/S3-03-export-pdf
 
 ## Sprint 4 — Polish & Build
 
-### ⬜ S4-01: Polish & Error Handling
+### ✅ S4-01: Polish & Error Handling
 
 Buat branch baru:
 
@@ -504,7 +504,7 @@ git checkout -b feature/S4-02-build
 - [ ] S3-01 Notes panel + auto-save
 - [ ] S3-02 Persistent notes
 - [x] S3-03 Export PDF
-- [ ] S4-01 Polish
+- [x] S4-01 Polish
 - [ ] S4-02 Build
 
 ---

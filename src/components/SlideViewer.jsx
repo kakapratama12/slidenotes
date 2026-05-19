@@ -8,6 +8,7 @@ const SlideViewer = forwardRef(function SlideViewer(
     error,
     onPrev,
     onNext,
+    onTryAnotherFile,
     renderPage,
     captureSlide,
   },
@@ -15,6 +16,7 @@ const SlideViewer = forwardRef(function SlideViewer(
 ) {
   const canvasRef = useRef(null);
   const [rendering, setRendering] = useState(false);
+  const [resizeTick, setResizeTick] = useState(0);
 
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
@@ -45,6 +47,13 @@ const SlideViewer = forwardRef(function SlideViewer(
   }, [onPrev, onNext, isFirstSlide, isLastSlide]);
 
   useEffect(() => {
+    const handleResize = () => setResizeTick((tick) => tick + 1);
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
     if (loading || pageCount === 0 || error) {
       return undefined;
     }
@@ -68,12 +77,19 @@ const SlideViewer = forwardRef(function SlideViewer(
     return () => {
       cancelled = true;
     };
-  }, [currentIndex, pageCount, loading, error, renderPage]);
+  }, [currentIndex, pageCount, loading, error, renderPage, resizeTick]);
 
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-red-600">
-        {error}
+      <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="max-w-md text-sm text-red-600">{error}</p>
+        <button
+          type="button"
+          onClick={onTryAnotherFile}
+          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+        >
+          Try another file
+        </button>
       </div>
     );
   }
@@ -87,8 +103,8 @@ const SlideViewer = forwardRef(function SlideViewer(
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <div className="relative flex flex-1 items-center justify-center overflow-auto bg-slate-50">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center overflow-auto rounded-lg bg-slate-50">
         <canvas ref={canvasRef} className="max-h-full max-w-full shadow-sm" />
         {rendering && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/60 text-sm text-slate-500">
@@ -97,12 +113,12 @@ const SlideViewer = forwardRef(function SlideViewer(
         )}
       </div>
 
-      <div className="mt-4 flex items-center justify-center gap-4">
+      <div className="mt-4 flex shrink-0 items-center justify-center gap-4">
         <button
           type="button"
           onClick={onPrev}
           disabled={isFirstSlide}
-          className="rounded bg-slate-800 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Prev
         </button>
@@ -115,7 +131,7 @@ const SlideViewer = forwardRef(function SlideViewer(
           type="button"
           onClick={onNext}
           disabled={isLastSlide}
-          className="rounded bg-slate-800 px-4 py-2 text-sm text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Next
         </button>

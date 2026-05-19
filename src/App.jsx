@@ -3,13 +3,19 @@ import DropZone from './components/DropZone.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
 import ThumbnailBar from './components/ThumbnailBar.jsx';
+import Toast from './components/Toast.jsx';
 import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
+
+function getFileName(filePath) {
+  return filePath.split(/[/\\]/).pop() ?? filePath;
+}
 
 function App() {
   const [filePath, setFilePath] = useState(null);
   const [exportStatus, setExportStatus] = useState('idle');
   const [exportMessage, setExportMessage] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
   const slideViewerRef = useRef(null);
 
   const {
@@ -26,6 +32,15 @@ function App() {
   } = useSlides(filePath);
 
   const { notes, updateNote, saveStatus, hydrateNotes } = useNotes(filePath);
+
+  useEffect(() => {
+    if (!filePath) {
+      window.electronAPI.setWindowTitle('SlideNotes');
+      return;
+    }
+
+    window.electronAPI.setWindowTitle(`SlideNotes — ${getFileName(filePath)}`);
+  }, [filePath]);
 
   useEffect(() => {
     if (!filePath) {
@@ -64,6 +79,19 @@ function App() {
     };
   }, [filePath, hydrateNotes]);
 
+  useEffect(() => {
+    if (exportStatus === 'error' && exportMessage) {
+      setToastMessage(exportMessage);
+    }
+  }, [exportStatus, exportMessage]);
+
+  const handleTryAnotherFile = () => {
+    setFilePath(null);
+    setExportStatus('idle');
+    setExportMessage('');
+    setToastMessage('');
+  };
+
   const handleExportPdf = async () => {
     if (!filePath || pageCount === 0 || !slideViewerRef.current) {
       return;
@@ -71,6 +99,7 @@ function App() {
 
     setExportStatus('exporting');
     setExportMessage('Exporting...');
+    setToastMessage('');
 
     try {
       const slideImages = [];
@@ -87,11 +116,11 @@ function App() {
         setExportMessage(`Saved to ${result.exportPath}`);
       } else {
         setExportStatus('error');
-        setExportMessage(result?.error ?? 'Export failed');
+        setExportMessage(result?.error ?? 'Export failed. Please try again.');
       }
     } catch {
       setExportStatus('error');
-      setExportMessage('Export failed');
+      setExportMessage('Export failed. Please try again.');
     }
   };
 
@@ -100,39 +129,48 @@ function App() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-100">
-      <ThumbnailBar
-        pageCount={pageCount}
-        currentIndex={currentIndex}
-        loading={loading}
-        onSelect={goTo}
-        renderThumbnail={renderThumbnail}
-      />
-
-      <main className="flex min-w-0 flex-1 flex-col p-4">
-        <SlideViewer
-          ref={slideViewerRef}
+    <>
+      <div className="flex h-screen min-h-0 overflow-hidden bg-slate-100 font-sans">
+        <ThumbnailBar
           pageCount={pageCount}
           currentIndex={currentIndex}
           loading={loading}
-          error={error}
-          onPrev={goPrev}
-          onNext={goNext}
-          renderPage={renderPage}
-          captureSlide={captureSlide}
+          onSelect={goTo}
+          renderThumbnail={renderThumbnail}
         />
-      </main>
 
-      <NotesPanel
-        currentIndex={currentIndex}
-        notes={notes}
-        saveStatus={saveStatus}
-        onNoteChange={updateNote}
-        onExport={handleExportPdf}
-        exportStatus={exportStatus}
-        exportMessage={exportMessage}
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col p-4">
+          <SlideViewer
+            ref={slideViewerRef}
+            pageCount={pageCount}
+            currentIndex={currentIndex}
+            loading={loading}
+            error={error}
+            onPrev={goPrev}
+            onNext={goNext}
+            onTryAnotherFile={handleTryAnotherFile}
+            renderPage={renderPage}
+            captureSlide={captureSlide}
+          />
+        </main>
+
+        <NotesPanel
+          currentIndex={currentIndex}
+          notes={notes}
+          saveStatus={saveStatus}
+          onNoteChange={updateNote}
+          onExport={handleExportPdf}
+          exportStatus={exportStatus}
+          exportMessage={exportMessage}
+        />
+      </div>
+
+      <Toast
+        message={toastMessage}
+        variant="error"
+        onDismiss={() => setToastMessage('')}
       />
-    </div>
+    </>
   );
 }
 

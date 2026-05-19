@@ -8,6 +8,8 @@ function getNotesJsonPath(filePath) {
   return path.join(parsed.dir, `${parsed.name}.slidenotes.json`);
 }
 
+let mainWindow = null;
+
 function registerIpcHandlers() {
   ipcMain.handle('open-file-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -70,12 +72,18 @@ function registerIpcHandlers() {
       return { ok: false, error: error.message };
     }
   });
+
+  ipcMain.handle('set-window-title', (_event, title) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setTitle(title);
+    }
+  });
 }
 
 function createWindow() {
   const isDev = !app.isPackaged;
 
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     minWidth: 1200,

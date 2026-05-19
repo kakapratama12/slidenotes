@@ -35,7 +35,9 @@ export function useSlides(filePath) {
         setCurrentIndex(0);
       } catch (err) {
         if (!cancelled) {
-          setError(err?.message ?? 'Failed to load PDF');
+          setError(
+            'Could not open this PDF. The file may be corrupt or not a valid PDF.',
+          );
         }
       } finally {
         if (!cancelled) {

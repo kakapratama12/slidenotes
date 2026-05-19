@@ -40,7 +40,7 @@ export default function NotesPanel({
   const isExporting = exportStatus === 'exporting';
 
   return (
-    <aside className="flex w-[35%] max-w-md shrink-0 flex-col border-l border-slate-200 bg-white p-4">
+    <aside className="flex h-full min-h-0 w-[35%] max-w-md shrink-0 flex-col border-l border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-800">
           Notes — Slide {currentIndex + 1}
@@ -58,7 +58,7 @@ export default function NotesPanel({
       <ExportStatus status={exportStatus} message={exportMessage} />
 
       <textarea
-        className="mt-3 min-h-0 flex-1 resize-none rounded-lg border border-slate-200 p-3 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+        className="mt-3 min-h-0 flex-1 resize-none overflow-y-auto rounded-lg border border-slate-200 p-3 text-sm leading-relaxed text-slate-800 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
         placeholder="Type your notes here..."
         value={noteValue}
         onChange={(event) => onNoteChange(currentIndex, event.target.value)}

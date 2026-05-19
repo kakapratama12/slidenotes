@@ -24,11 +24,23 @@ export function useNotes(filePath) {
 
     setSaveStatus('saving');
 
+    const saveOnce = () => window.electronAPI.saveNotes(filePath, notesToSave);
+
     try {
-      const result = await window.electronAPI.saveNotes(filePath, notesToSave);
+      let result = await saveOnce();
+
+      if (!result?.ok) {
+        result = await saveOnce();
+      }
+
       setSaveStatus(result?.ok ? 'saved' : 'error');
     } catch {
-      setSaveStatus('error');
+      try {
+        const result = await saveOnce();
+        setSaveStatus(result?.ok ? 'saved' : 'error');
+      } catch {
+        setSaveStatus('error');
+      }
     }
   }, [filePath]);
 
