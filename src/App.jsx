@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import HomeScreen from './components/HomeScreen.jsx';
+import HighlightNotesPanel from './components/HighlightNotesPanel.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import PanelDivider from './components/PanelDivider.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
@@ -9,10 +10,22 @@ import ExportModal from './components/ExportModal.jsx';
 import Toast from './components/Toast.jsx';
 import { CURSOR_TOOL } from './constants/highlightTools.js';
 import {
+  getStoredLayout,
+  LAYOUT_DEFAULT,
+  LAYOUT_ZOOM,
+  storeLayout,
+  toggleLayout,
+} from './constants/appLayout.js';
+import {
   clampNotesPanelWidth,
   getStoredNotesPanelWidth,
   storeNotesPanelWidth,
 } from './constants/panelLayout.js';
+import {
+  clampZoomHighlightWidth,
+  getStoredZoomHighlightWidth,
+  storeZoomHighlightWidth,
+} from './constants/zoomLayout.js';
 import { useNotes } from './hooks/useNotes.js';
 import { useRecentFiles } from './hooks/useRecentFiles.js';
 import { useSlides } from './hooks/useSlides.js';
@@ -34,6 +47,12 @@ function App() {
   const layoutRef = useRef(null);
   const notesPanelWidthRef = useRef(getStoredNotesPanelWidth());
   const [notesPanelWidth, setNotesPanelWidth] = useState(() => getStoredNotesPanelWidth());
+  const [viewLayout, setViewLayout] = useState(() => getStoredLayout());
+  const zoomBottomRef = useRef(null);
+  const zoomHighlightWidthRef = useRef(getStoredZoomHighlightWidth());
+  const [zoomHighlightWidth, setZoomHighlightWidth] = useState(() =>
+    getStoredZoomHighlightWidth(),
+  );
   const { recentFiles, addRecentFile, removeRecentFile } = useRecentFiles();
 
   const {
@@ -248,6 +267,38 @@ function App() {
     storeNotesPanelWidth(notesPanelWidthRef.current);
   };
 
+  const handleToggleViewLayout = useCallback(() => {
+    setViewLayout((current) => {
+      const next = toggleLayout(current);
+      storeLayout(next);
+      return next;
+    });
+  }, []);
+
+  const handleZoomBottomDividerDrag = (clientX) => {
+    const container = zoomBottomRef.current;
+    if (!container) {
+      return;
+    }
+
+    const rect = container.getBoundingClientRect();
+    const containerWidth = rect.width;
+    if (containerWidth <= 0) {
+      return;
+    }
+
+    const dividerX = clientX - rect.left;
+    const nextWidth = clampZoomHighlightWidth(
+      ((containerWidth - dividerX) / containerWidth) * 100,
+    );
+    zoomHighlightWidthRef.current = nextWidth;
+    setZoomHighlightWidth(nextWidth);
+  };
+
+  const handleZoomBottomDividerDragEnd = () => {
+    storeZoomHighlightWidth(zoomHighlightWidthRef.current);
+  };
+
   const handleOpenExportModal = () => {
     if (pageCount === 0) {
       return;
@@ -320,59 +371,92 @@ function App() {
     );
   }
 
+  const slideViewer = (
+    <SlideViewer
+      ref={slideViewerRef}
+      pageCount={pageCount}
+      currentIndex={currentIndex}
+      loading={loading}
+      error={error}
+      zoom={zoom}
+      onPrev={goPrev}
+      onNext={goNext}
+      onTryAnotherFile={handleGoHome}
+      onZoomIn={zoomIn}
+      onZoomOut={zoomOut}
+      onZoomReset={zoomReset}
+      onZoomChange={setZoomClamped}
+      renderPage={renderPage}
+      captureSlide={captureSlide}
+      highlights={slideHighlights}
+      activeTool={activeTool}
+      onActiveToolChange={setActiveTool}
+      selectedHighlightId={selectedHighlightId}
+      onSelectHighlight={setSelectedHighlightId}
+      onAddHighlight={handleAddHighlight}
+      onUpdateHighlightNote={handleUpdateHighlightNote}
+      onUpdateHighlight={handleUpdateHighlight}
+      onDeleteHighlight={handleDeleteHighlight}
+      onGoHome={handleGoHome}
+      viewLayout={viewLayout}
+      onToggleLayout={handleToggleViewLayout}
+    />
+  );
+
+  const notesPanelProps = {
+    currentIndex,
+    notes,
+    saveStatus,
+    onNoteChange: updateNote,
+    onExport: handleOpenExportModal,
+    exportStatus,
+    exportMessage,
+  };
+
   return (
     <>
       <div ref={layoutRef} className="flex h-screen min-h-0 overflow-hidden bg-slate-100 font-sans">
-        <ThumbnailBar
-          pageCount={pageCount}
-          currentIndex={currentIndex}
-          loading={loading}
-          onSelect={goTo}
-          renderThumbnail={renderThumbnail}
-        />
+        {viewLayout === LAYOUT_DEFAULT ? (
+          <>
+            <ThumbnailBar
+              pageCount={pageCount}
+              currentIndex={currentIndex}
+              loading={loading}
+              onSelect={goTo}
+              renderThumbnail={renderThumbnail}
+            />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
-          <SlideViewer
-            ref={slideViewerRef}
-            pageCount={pageCount}
-            currentIndex={currentIndex}
-            loading={loading}
-            error={error}
-            zoom={zoom}
-            onPrev={goPrev}
-            onNext={goNext}
-            onTryAnotherFile={handleGoHome}
-            onZoomIn={zoomIn}
-            onZoomOut={zoomOut}
-            onZoomReset={zoomReset}
-            onZoomChange={setZoomClamped}
-            renderPage={renderPage}
-            captureSlide={captureSlide}
-            highlights={slideHighlights}
-            activeTool={activeTool}
-            onActiveToolChange={setActiveTool}
-            selectedHighlightId={selectedHighlightId}
-            onSelectHighlight={setSelectedHighlightId}
-            onAddHighlight={handleAddHighlight}
-            onUpdateHighlightNote={handleUpdateHighlightNote}
-            onUpdateHighlight={handleUpdateHighlight}
-            onDeleteHighlight={handleDeleteHighlight}
-            onGoHome={handleGoHome}
-          />
-        </main>
+            <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
+              {slideViewer}
+            </main>
 
-        <PanelDivider onDrag={handlePanelDividerDrag} onDragEnd={handlePanelDividerDragEnd} />
+            <PanelDivider onDrag={handlePanelDividerDrag} onDragEnd={handlePanelDividerDragEnd} />
 
-        <NotesPanel
-          width={notesPanelWidth}
-          currentIndex={currentIndex}
-          notes={notes}
-          saveStatus={saveStatus}
-          onNoteChange={updateNote}
-          onExport={handleOpenExportModal}
-          exportStatus={exportStatus}
-          exportMessage={exportMessage}
-        />
+            <NotesPanel width={notesPanelWidth} variant="sidebar" {...notesPanelProps} />
+          </>
+        ) : (
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            <main className="flex h-[60%] min-h-0 flex-col overflow-hidden p-4">{slideViewer}</main>
+
+            <div
+              ref={zoomBottomRef}
+              className="flex h-[40%] min-h-0 overflow-hidden border-t border-slate-200"
+            >
+              <NotesPanel variant="bottom" {...notesPanelProps} />
+
+              <PanelDivider
+                onDrag={handleZoomBottomDividerDrag}
+                onDragEnd={handleZoomBottomDividerDragEnd}
+              />
+
+              <HighlightNotesPanel
+                width={zoomHighlightWidth}
+                highlights={slideHighlights}
+                currentIndex={currentIndex}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <SearchPanel

@@ -24,6 +24,8 @@ const SlideViewer = forwardRef(function SlideViewer(
     activeTool,
     onActiveToolChange,
     onGoHome,
+    viewLayout,
+    onToggleLayout,
     selectedHighlightId,
     onSelectHighlight,
     onAddHighlight,
@@ -441,6 +443,8 @@ const SlideViewer = forwardRef(function SlideViewer(
         activeTool={activeTool}
         onToolChange={onActiveToolChange}
         onGoHome={onGoHome}
+        viewLayout={viewLayout}
+        onToggleLayout={onToggleLayout}
       />
 
       <div className="mt-4 flex shrink-0 items-center justify-center gap-4">

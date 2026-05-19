@@ -1,3 +1,4 @@
+import { LAYOUT_ZOOM } from '../constants/appLayout.js';
 import { HIGHLIGHT_COLORS } from '../constants/highlightColors.js';
 import { CURSOR_TOOL } from '../constants/highlightTools.js';
 
@@ -20,8 +21,16 @@ function CursorIcon() {
   );
 }
 
-export default function HighlightToolbar({ activeTool, onToolChange, onGoHome }) {
+export default function HighlightToolbar({
+  activeTool,
+  onToolChange,
+  onGoHome,
+  viewLayout,
+  onToggleLayout,
+}) {
   const isCursorActive = activeTool === CURSOR_TOOL;
+  const isZoomLayout = viewLayout === LAYOUT_ZOOM;
+  const layoutIcon = isZoomLayout ? '⬒' : '⊞';
 
   return (
     <div className="mt-3 flex shrink-0 items-center justify-center gap-2">
@@ -71,6 +80,18 @@ export default function HighlightToolbar({ activeTool, onToolChange, onGoHome })
           />
         );
       })}
+
+      <div className="mx-1 h-6 w-px bg-slate-300" aria-hidden />
+
+      <button
+        type="button"
+        onClick={onToggleLayout}
+        title={isZoomLayout ? 'Switch to Default Layout' : 'Switch to Zoom Mode'}
+        aria-label={isZoomLayout ? 'Switch to Default Layout' : 'Switch to Zoom Mode'}
+        className="flex h-8 min-w-[2rem] items-center justify-center rounded-lg border border-slate-200 bg-white px-2 text-base text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+      >
+        {layoutIcon}
+      </button>
     </div>
   );
 }

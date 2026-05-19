@@ -28,6 +28,7 @@ function ExportStatus({ status, message }) {
 
 export default function NotesPanel({
   width,
+  variant = 'sidebar',
   currentIndex,
   notes,
   saveStatus,
@@ -39,11 +40,14 @@ export default function NotesPanel({
   const slideKey = String(currentIndex);
   const noteValue = notes[slideKey]?.note ?? '';
   const isExporting = exportStatus === 'exporting';
+  const isBottom = variant === 'bottom';
 
   return (
     <aside
-      className="flex h-full min-h-0 shrink-0 flex-col bg-white p-4"
-      style={{ width: `${width}%` }}
+      className={`flex h-full min-h-0 flex-col bg-white p-4 ${
+        isBottom ? 'min-w-0 flex-1' : 'shrink-0'
+      }`}
+      style={isBottom ? undefined : { width: `${width}%` }}
     >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-800">
