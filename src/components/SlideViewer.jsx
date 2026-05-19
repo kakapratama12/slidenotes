@@ -1,4 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import HighlightOverlay from './HighlightOverlay.jsx';
+import HighlightToolbar from './HighlightToolbar.jsx';
 
 const SlideViewer = forwardRef(function SlideViewer(
   {
@@ -16,6 +18,12 @@ const SlideViewer = forwardRef(function SlideViewer(
     onZoomChange,
     renderPage,
     captureSlide,
+    highlights,
+    drawColor,
+    onDrawColorChange,
+    selectedHighlightId,
+    onSelectHighlight,
+    onAddHighlight,
   },
   ref,
 ) {
@@ -23,6 +31,7 @@ const SlideViewer = forwardRef(function SlideViewer(
   const scrollRef = useRef(null);
   const [rendering, setRendering] = useState(false);
   const [resizeTick, setResizeTick] = useState(0);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
@@ -134,6 +143,19 @@ const SlideViewer = forwardRef(function SlideViewer(
     };
   }, [currentIndex, pageCount, loading, error, renderPage, resizeTick]);
 
+  useEffect(() => {
+    if (rendering) {
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      return;
+    }
+
+    setCanvasSize({ width: canvas.width, height: canvas.height });
+  }, [rendering, currentIndex, resizeTick]);
+
   if (error) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
@@ -165,10 +187,19 @@ const SlideViewer = forwardRef(function SlideViewer(
         className="relative min-h-0 flex-1 overflow-auto rounded-lg bg-slate-50 p-4"
       >
         <div
-          className="inline-block origin-top-left shadow-sm"
+          className="relative inline-block origin-top-left shadow-sm"
           style={{ transform: `scale(${zoom})` }}
         >
           <canvas ref={canvasRef} className="block" />
+          <HighlightOverlay
+            width={canvasSize.width}
+            height={canvasSize.height}
+            highlights={highlights}
+            drawColor={drawColor}
+            selectedId={selectedHighlightId}
+            onSelect={onSelectHighlight}
+            onCreate={onAddHighlight}
+          />
         </div>
         {rendering && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60 text-sm text-slate-500">
@@ -176,6 +207,8 @@ const SlideViewer = forwardRef(function SlideViewer(
           </div>
         )}
       </div>
+
+      <HighlightToolbar activeColor={drawColor} onColorChange={onDrawColorChange} />
 
       <div className="mt-3 flex shrink-0 items-center justify-center gap-2">
         <button

@@ -18,6 +18,8 @@ function App() {
   const [exportMessage, setExportMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [drawColor, setDrawColor] = useState(null);
+  const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const slideViewerRef = useRef(null);
 
   const {
@@ -38,7 +40,7 @@ function App() {
     captureSlide,
   } = useSlides(filePath);
 
-  const { notes, updateNote, saveStatus, hydrateNotes } = useNotes(filePath);
+  const { notes, updateNote, addHighlight, saveStatus, hydrateNotes } = useNotes(filePath);
 
   useEffect(() => {
     if (!filePath) {
@@ -91,6 +93,16 @@ function App() {
       setToastMessage(exportMessage);
     }
   }, [exportStatus, exportMessage]);
+
+  useEffect(() => {
+    setSelectedHighlightId(null);
+  }, [currentIndex]);
+
+  const slideHighlights = notes[String(currentIndex)]?.highlights ?? [];
+
+  const handleAddHighlight = (highlight) => {
+    addHighlight(currentIndex, highlight);
+  };
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -175,6 +187,12 @@ function App() {
             onZoomChange={setZoomClamped}
             renderPage={renderPage}
             captureSlide={captureSlide}
+            highlights={slideHighlights}
+            drawColor={drawColor}
+            onDrawColorChange={setDrawColor}
+            selectedHighlightId={selectedHighlightId}
+            onSelectHighlight={setSelectedHighlightId}
+            onAddHighlight={handleAddHighlight}
           />
         </main>
 

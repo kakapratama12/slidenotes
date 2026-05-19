@@ -605,7 +605,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 6 — Highlight Annotation
 
-### ⬜ S6-01: Draw Highlight Box
+### ✅ S6-01: Draw Highlight Box
 
 Buat branch baru:
 ```
@@ -808,7 +808,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 - [x] S5-01 Zoom on slide
 - [x] S5-02 Search notes
-- [ ] S6-01 Draw highlight box
+- [x] S6-01 Draw highlight box
 - [ ] S6-02 Highlight note popup
 - [ ] S6-03 Highlight di export PDF
 - [ ] S7-01 Opsi layout export

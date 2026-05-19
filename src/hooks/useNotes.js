@@ -82,9 +82,57 @@ export function useNotes(filePath) {
     setSaveStatus('saved');
   }, []);
 
+  const addHighlight = useCallback(
+    (slideIndex, highlight) => {
+      const key = String(slideIndex);
+
+      setNotes((prev) => {
+        const slide = prev[key] ?? { note: '', highlights: [] };
+        const next = {
+          ...prev,
+          [key]: {
+            note: slide.note ?? '',
+            highlights: [...(slide.highlights ?? []), highlight],
+          },
+        };
+
+        saveDebounced(next);
+        return next;
+      });
+    },
+    [saveDebounced],
+  );
+
+  const deleteHighlight = useCallback(
+    (slideIndex, highlightId) => {
+      const key = String(slideIndex);
+
+      setNotes((prev) => {
+        const slide = prev[key];
+        if (!slide) {
+          return prev;
+        }
+
+        const next = {
+          ...prev,
+          [key]: {
+            note: slide.note ?? '',
+            highlights: (slide.highlights ?? []).filter((item) => item.id !== highlightId),
+          },
+        };
+
+        saveDebounced(next);
+        return next;
+      });
+    },
+    [saveDebounced],
+  );
+
   return {
     notes,
     updateNote,
+    addHighlight,
+    deleteHighlight,
     saveStatus,
     hydrateNotes,
   };
