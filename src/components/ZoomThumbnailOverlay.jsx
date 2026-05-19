@@ -98,7 +98,7 @@ export default function ZoomThumbnailOverlay({
       {isPanelOpen && (
         <div
           ref={panelRef}
-          className="zoom-thumbnail-panel absolute inset-x-0 top-0 z-50 max-h-[min(320px,45%)] overflow-hidden border-b border-slate-200 bg-white shadow-lg"
+          className="zoom-thumbnail-panel absolute inset-x-0 top-0 z-50 h-[120px] overflow-hidden border-b border-slate-200 bg-white shadow-lg"
         >
           <ThumbnailBar
             variant="overlay"

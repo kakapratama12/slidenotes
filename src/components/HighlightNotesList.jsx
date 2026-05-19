@@ -126,7 +126,7 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
   }
 
   return (
-    <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
+    <ul className="mt-4 min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto">
       {sortedHighlights.map((highlight) => {
         const number = getHighlightNumber(highlights, highlight.id ?? highlight);
         const isSelected = highlight.id === selectedHighlightId;
@@ -134,7 +134,7 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
         const displayNote = highlight.note?.trim() ?? '';
 
         return (
-          <li key={highlight.id}>
+          <li key={highlight.id} className="min-w-0 overflow-hidden">
             <div
               ref={(element) => {
                 if (element) {
@@ -143,7 +143,7 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                   delete itemRefs.current[highlight.id];
                 }
               }}
-              className={`flex w-full gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
+              className={`flex w-full min-w-0 gap-3 overflow-hidden rounded-lg border p-3 text-left text-sm transition-colors ${
                 isSelected
                   ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
                   : 'border-slate-200 bg-white hover:border-slate-300'
@@ -188,7 +188,7 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                   onKeyDown={(event) => event.stopPropagation()}
                   placeholder="Add a note..."
                   rows={2}
-                  className="min-w-0 flex-1 resize-none rounded border border-slate-200 bg-white p-1.5 text-sm text-slate-700 outline-none ring-1 ring-blue-500"
+                  className="min-w-0 flex-1 resize-none overflow-hidden break-words whitespace-normal rounded border border-slate-200 bg-white p-1.5 text-sm text-slate-700 outline-none ring-1 ring-blue-500"
                 />
               ) : (
                 <button
@@ -202,11 +202,13 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                     event.preventDefault();
                     event.stopPropagation();
                   }}
-                  className={`min-w-0 flex-1 rounded p-1.5 text-left text-sm outline-none hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                  className={`min-w-0 flex-1 overflow-hidden break-words whitespace-normal rounded p-1.5 text-left text-sm outline-none hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-blue-500 ${
                     displayNote ? 'text-slate-700' : 'text-slate-400'
                   }`}
                 >
-                  {displayNote || 'Add a note...'}
+                  <span className="block w-full break-words whitespace-normal">
+                    {displayNote || 'Add a note...'}
+                  </span>
                 </button>
               )}
             </div>

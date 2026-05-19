@@ -13,7 +13,7 @@ export default function HighlightNotesPanel({
 }) {
   return (
     <aside
-      className="flex h-full min-h-0 shrink-0 flex-col border-l border-slate-200 bg-slate-50 p-4"
+      className="flex h-full min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-l border-slate-200 bg-slate-50 p-4"
       style={{ width: `${width}%` }}
     >
       <h2 className="text-sm font-semibold text-slate-800">
