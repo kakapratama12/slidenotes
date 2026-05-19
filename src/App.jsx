@@ -49,6 +49,7 @@ function App() {
     addHighlight,
     deleteHighlight,
     updateHighlightNote,
+    updateHighlight,
     saveStatus,
     hydrateNotes,
   } = useNotes(filePath);
@@ -128,6 +129,10 @@ function App() {
     if (selectedHighlightId === highlightId) {
       setSelectedHighlightId(null);
     }
+  };
+
+  const handleUpdateHighlight = (highlightId, geometry) => {
+    updateHighlight(currentIndex, highlightId, geometry);
   };
 
   useEffect(() => {
@@ -247,6 +252,7 @@ function App() {
             onSelectHighlight={setSelectedHighlightId}
             onAddHighlight={handleAddHighlight}
             onUpdateHighlightNote={handleUpdateHighlightNote}
+            onUpdateHighlight={handleUpdateHighlight}
             onDeleteHighlight={handleDeleteHighlight}
           />
         </main>

@@ -26,6 +26,7 @@ const SlideViewer = forwardRef(function SlideViewer(
     onSelectHighlight,
     onAddHighlight,
     onUpdateHighlightNote,
+    onUpdateHighlight,
     onDeleteHighlight,
   },
   ref,
@@ -206,6 +207,7 @@ const SlideViewer = forwardRef(function SlideViewer(
             onSelect={onSelectHighlight}
             onCreate={onAddHighlight}
             onUpdateHighlightNote={onUpdateHighlightNote}
+            onUpdateHighlight={onUpdateHighlight}
             onDeleteHighlight={onDeleteHighlight}
           />
         </div>

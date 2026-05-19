@@ -881,7 +881,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S8-02: Move & Resize Highlight
+### ✅ S8-02: Move & Resize Highlight
 
 Buat branch baru:
 ```
@@ -1042,7 +1042,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 ## Checklist v1.3
 
 - [x] S8-01 Toolbar redesign & draw mode
-- [ ] S8-02 Move & resize highlight
+- [x] S8-02 Move & resize highlight
 - [ ] S8-03 Pan slide saat zoom in
 - [ ] S8-04 Draggable panel divider
 

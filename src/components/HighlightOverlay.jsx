@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { HIGHLIGHT_FILL_OPACITY } from '../constants/highlightColors.js';
+import {
+  getHandleCenter,
+  HANDLE_CURSORS,
+  HANDLE_SIZE,
+  moveHighlight,
+  resizeHighlight,
+  RESIZE_HANDLES,
+} from '../utils/highlightGeometry.js';
 import HighlightPopup from './HighlightPopup.jsx';
 
 const MIN_DRAG_PX = 4;
@@ -23,6 +31,13 @@ function getLocalPoint(event, svgElement) {
   };
 }
 
+function toNormalizedPoint(point, canvasWidth, canvasHeight) {
+  return {
+    x: point.x / canvasWidth,
+    y: point.y / canvasHeight,
+  };
+}
+
 function hasNoteText(note) {
   return Boolean(note?.trim());
 }
@@ -36,6 +51,7 @@ export default function HighlightOverlay({
   onSelect,
   onCreate,
   onUpdateHighlightNote,
+  onUpdateHighlight,
   onDeleteHighlight,
 }) {
   const svgRef = useRef(null);
@@ -45,6 +61,8 @@ export default function HighlightOverlay({
   const [draft, setDraft] = useState(null);
   const [activeHighlightId, setActiveHighlightId] = useState(null);
   const [anchorRect, setAnchorRect] = useState(null);
+  const [hoveredHighlightId, setHoveredHighlightId] = useState(null);
+  const [dragState, setDragState] = useState(null);
   const activeHighlightIdRef = useRef(null);
   const drawMode = Boolean(drawColor);
 
@@ -91,10 +109,11 @@ export default function HighlightOverlay({
 
   const handleHighlightEnter = useCallback(
     (highlightId) => {
-      if (drawMode) {
+      if (drawMode || dragState) {
         return;
       }
 
+      setHoveredHighlightId(highlightId);
       clearHideTimer();
       clearShowTimer();
 
@@ -107,13 +126,18 @@ export default function HighlightOverlay({
         openPopupForHighlight(highlightId);
       }, SHOW_DELAY_MS);
     },
-    [drawMode, clearHideTimer, clearShowTimer, openPopupForHighlight],
+    [drawMode, dragState, clearHideTimer, clearShowTimer, openPopupForHighlight],
   );
 
   const handleHighlightLeave = useCallback(() => {
+    if (dragState) {
+      return;
+    }
+
+    setHoveredHighlightId(null);
     clearShowTimer();
     scheduleHidePopup();
-  }, [clearShowTimer, scheduleHidePopup]);
+  }, [dragState, clearShowTimer, scheduleHidePopup]);
 
   const handlePopupEnter = useCallback(() => {
     clearHideTimer();
@@ -123,11 +147,20 @@ export default function HighlightOverlay({
     scheduleHidePopup();
   }, [scheduleHidePopup]);
 
+  const dismissPopup = useCallback(() => {
+    clearShowTimer();
+    clearHideTimer();
+    setActiveHighlightId(null);
+    setAnchorRect(null);
+  }, [clearShowTimer, clearHideTimer]);
+
   useEffect(() => {
     clearShowTimer();
     clearHideTimer();
     setActiveHighlightId(null);
     setAnchorRect(null);
+    setHoveredHighlightId(null);
+    setDragState(null);
   }, [width, height, drawColor, clearShowTimer, clearHideTimer]);
 
   useEffect(
@@ -146,8 +179,45 @@ export default function HighlightOverlay({
     updateAnchorForHighlight(activeHighlightId);
   }, [activeHighlightId, highlights, width, height, updateAnchorForHighlight]);
 
+  const startDrag = useCallback(
+    (event, highlight, handle) => {
+      if (drawMode || !svgRef.current) {
+        return;
+      }
+
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      const point = getLocalPoint(event, svgRef.current);
+      const original = {
+        x: highlight.x,
+        y: highlight.y,
+        width: highlight.width,
+        height: highlight.height,
+      };
+
+      dismissPopup();
+      onSelect(highlight.id);
+      setHoveredHighlightId(highlight.id);
+
+      setDragState({
+        id: highlight.id,
+        type: handle ? 'resize' : 'move',
+        handle,
+        startPoint: point,
+        original,
+        preview: { ...original },
+      });
+    },
+    [drawMode, dismissPopup, onSelect],
+  );
+
   const handlePointerDown = useCallback(
     (event) => {
+      if (dragState) {
+        return;
+      }
+
       if (!drawMode || !svgRef.current || width === 0 || height === 0) {
         return;
       }
@@ -160,11 +230,29 @@ export default function HighlightOverlay({
       const point = getLocalPoint(event, svgRef.current);
       setDraft({ startX: point.x, startY: point.y, currentX: point.x, currentY: point.y });
     },
-    [drawMode, width, height],
+    [dragState, drawMode, width, height],
   );
 
   const handlePointerMove = useCallback(
     (event) => {
+      if (dragState && svgRef.current) {
+        const point = getLocalPoint(event, svgRef.current);
+        const pointerNorm = toNormalizedPoint(point, width, height);
+
+        if (dragState.type === 'move') {
+          const deltaX = (point.x - dragState.startPoint.x) / width;
+          const deltaY = (point.y - dragState.startPoint.y) / height;
+          const preview = moveHighlight(dragState.original, deltaX, deltaY);
+
+          setDragState((prev) => (prev ? { ...prev, preview } : prev));
+        } else {
+          const preview = resizeHighlight(dragState.original, dragState.handle, pointerNorm);
+          setDragState((prev) => (prev ? { ...prev, preview } : prev));
+        }
+
+        return;
+      }
+
       if (!draft) {
         return;
       }
@@ -174,11 +262,18 @@ export default function HighlightOverlay({
         prev ? { ...prev, currentX: point.x, currentY: point.y } : prev,
       );
     },
-    [draft],
+    [dragState, draft, width, height],
   );
 
   const handlePointerUp = useCallback(
     (event) => {
+      if (dragState) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        onUpdateHighlight(dragState.id, dragState.preview);
+        setDragState(null);
+        return;
+      }
+
       if (!draft || !drawColor) {
         return;
       }
@@ -208,11 +303,12 @@ export default function HighlightOverlay({
 
       setDraft(null);
     },
-    [draft, drawColor, width, height, onCreate],
+    [dragState, draft, drawColor, width, height, onCreate, onUpdateHighlight],
   );
 
   const handlePointerCancel = useCallback(() => {
     setDraft(null);
+    setDragState(null);
   }, []);
 
   const activeHighlight = highlights.find((item) => item.id === activeHighlightId);
@@ -222,10 +318,7 @@ export default function HighlightOverlay({
       return;
     }
 
-    clearShowTimer();
-    clearHideTimer();
-    setActiveHighlightId(null);
-    setAnchorRect(null);
+    dismissPopup();
     onDeleteHighlight(activeHighlightId);
   };
 
@@ -237,25 +330,41 @@ export default function HighlightOverlay({
     ? normalizeRect(draft.startX, draft.startY, draft.currentX, draft.currentY, width, height)
     : null;
 
+  const getDisplayGeometry = (highlight) => {
+    if (dragState?.id === highlight.id && dragState.preview) {
+      return dragState.preview;
+    }
+
+    return {
+      x: highlight.x,
+      y: highlight.y,
+      width: highlight.width,
+      height: highlight.height,
+    };
+  };
+
   return (
     <>
       <svg
         ref={svgRef}
         width={width}
         height={height}
-      className="absolute left-0 top-0 touch-none"
+        className="absolute left-0 top-0 touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
       >
         {highlights.map((highlight) => {
+          const geometry = getDisplayGeometry(highlight);
           const isSelected = highlight.id === selectedId;
-          const pixelX = highlight.x * width;
-          const pixelY = highlight.y * height;
-          const pixelW = highlight.width * width;
-          const pixelH = highlight.height * height;
+          const pixelX = geometry.x * width;
+          const pixelY = geometry.y * height;
+          const pixelW = geometry.width * width;
+          const pixelH = geometry.height * height;
           const showNoteDot = hasNoteText(highlight.note);
+          const showHandles =
+            !drawMode && (hoveredHighlightId === highlight.id || dragState?.id === highlight.id);
 
           return (
             <g key={highlight.id}>
@@ -275,17 +384,13 @@ export default function HighlightOverlay({
                 fillOpacity={HIGHLIGHT_FILL_OPACITY}
                 stroke={isSelected ? '#1e293b' : highlight.color}
                 strokeWidth={isSelected ? 2 : 1}
-                style={{ pointerEvents: drawMode ? 'none' : 'auto' }}
+                style={{
+                  pointerEvents: drawMode ? 'none' : 'auto',
+                  cursor: drawMode ? 'default' : 'move',
+                }}
                 onMouseEnter={() => handleHighlightEnter(highlight.id)}
                 onMouseLeave={handleHighlightLeave}
-                onPointerDown={(event) => {
-                  if (drawMode) {
-                    return;
-                  }
-
-                  event.stopPropagation();
-                  onSelect(highlight.id);
-                }}
+                onPointerDown={(event) => startDrag(event, highlight, null)}
               />
               {showNoteDot && (
                 <circle
@@ -298,6 +403,31 @@ export default function HighlightOverlay({
                   pointerEvents="none"
                 />
               )}
+              {showHandles &&
+                RESIZE_HANDLES.map((handle) => {
+                  const center = getHandleCenter(handle, pixelX, pixelY, pixelW, pixelH);
+                  const half = HANDLE_SIZE / 2;
+
+                  return (
+                    <rect
+                      key={`${highlight.id}-${handle}`}
+                      x={center.x - half}
+                      y={center.y - half}
+                      width={HANDLE_SIZE}
+                      height={HANDLE_SIZE}
+                      fill="#ffffff"
+                      stroke={highlight.color}
+                      strokeWidth={1.5}
+                      style={{ cursor: HANDLE_CURSORS[handle] }}
+                      onMouseEnter={() => {
+                        if (!drawMode) {
+                          setHoveredHighlightId(highlight.id);
+                        }
+                      }}
+                      onPointerDown={(event) => startDrag(event, highlight, handle)}
+                    />
+                  );
+                })}
             </g>
           );
         })}
@@ -317,7 +447,7 @@ export default function HighlightOverlay({
         )}
       </svg>
 
-      {activeHighlight && !drawMode && (
+      {activeHighlight && !drawMode && !dragState && (
         <HighlightPopup
           anchorRect={anchorRect}
           note={activeHighlight.note ?? ''}
