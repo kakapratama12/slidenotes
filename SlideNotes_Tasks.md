@@ -815,14 +815,14 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-## Checklist v1.1
+## Checklist v1.2.0
 
-- [ ] S5-01 Zoom on slide
-- [ ] S5-02 Search notes
-- [ ] S6-01 Draw highlight box
-- [ ] S6-02 Highlight note popup
-- [ ] S6-03 Highlight di export PDF
-- [ ] S7-01 Opsi layout export
+- [x] S5-01 Zoom on slide
+- [x] S5-02 Search notes
+- [x] S6-01 Draw highlight box
+- [x] S6-02 Highlight note popup
+- [x] S6-03 Highlight di export PDF
+- [x] S7-01 Opsi layout export
 
 ---
 
@@ -1039,7 +1039,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-## Checklist v1.3
+## Checklist v1.3.0
 
 - [x] S8-01 Toolbar redesign & draw mode
 - [x] S8-02 Move & resize highlight

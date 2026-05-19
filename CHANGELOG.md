@@ -6,6 +6,23 @@ Format: [Semantic Versioning](https://semver.org) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.3.0] — 2026-05 — Interaction Polish
+
+### Added
+- **Cursor tool** — explicit select mode in highlight toolbar; default when opening a file
+- **Persistent draw mode** — stay on the same highlight color after drawing; exit via Cursor tool or Esc
+- **Move & resize highlights** — drag highlights to reposition; 8 resize handles on hover in cursor mode
+- **Pan when zoomed in** — drag empty slide area to pan viewport when zoom > 100% (cursor tool only)
+- **Draggable panel divider** — resize slide vs notes panel proportion; preference saved to localStorage
+
+### Changed
+- Highlight toolbar layout: `[Cursor] | [5 colors]` with visual separator
+- Clicking active color no longer exits draw mode — use Cursor or Esc instead
+- Notes panel width is dynamic (20–50%) instead of fixed 35%
+- Slide scroll area uses overflow hidden when panning is enabled
+
+---
+
 ## [1.2.0] — 2026-05 — Highlight & Export Options
 
 ### Added
