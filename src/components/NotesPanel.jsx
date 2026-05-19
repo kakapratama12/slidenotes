@@ -27,6 +27,7 @@ function ExportStatus({ status, message }) {
 }
 
 export default function NotesPanel({
+  width,
   currentIndex,
   notes,
   saveStatus,
@@ -40,7 +41,10 @@ export default function NotesPanel({
   const isExporting = exportStatus === 'exporting';
 
   return (
-    <aside className="flex h-full min-h-0 w-[35%] max-w-md shrink-0 flex-col border-l border-slate-200 bg-white p-4">
+    <aside
+      className="flex h-full min-h-0 shrink-0 flex-col bg-white p-4"
+      style={{ width: `${width}%` }}
+    >
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-slate-800">
           Notes — Slide {currentIndex + 1}

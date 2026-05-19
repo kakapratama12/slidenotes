@@ -989,7 +989,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S8-04: Draggable Panel Divider
+### ✅ S8-04: Draggable Panel Divider
 
 Buat branch baru:
 ```
@@ -1044,7 +1044,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S8-01 Toolbar redesign & draw mode
 - [x] S8-02 Move & resize highlight
 - [x] S8-03 Pan slide saat zoom in
-- [ ] S8-04 Draggable panel divider
+- [x] S8-04 Draggable panel divider
 
 ---
 

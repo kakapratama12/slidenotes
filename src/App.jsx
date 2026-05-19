@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import DropZone from './components/DropZone.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
+import PanelDivider from './components/PanelDivider.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
 import ThumbnailBar from './components/ThumbnailBar.jsx';
 import SearchPanel from './components/SearchPanel.jsx';
 import ExportModal from './components/ExportModal.jsx';
 import Toast from './components/Toast.jsx';
 import { CURSOR_TOOL } from './constants/highlightTools.js';
+import {
+  clampNotesPanelWidth,
+  getStoredNotesPanelWidth,
+  storeNotesPanelWidth,
+} from './constants/panelLayout.js';
 import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
 
@@ -24,6 +30,9 @@ function App() {
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const slideViewerRef = useRef(null);
+  const layoutRef = useRef(null);
+  const panelDragRef = useRef({ startWidth: 35 });
+  const [notesPanelWidth, setNotesPanelWidth] = useState(() => getStoredNotesPanelWidth());
 
   const {
     pageCount,
@@ -158,6 +167,27 @@ function App() {
     setToastMessage('');
   };
 
+  const handlePanelDividerDragStart = () => {
+    panelDragRef.current = {
+      startWidth: notesPanelWidth,
+    };
+  };
+
+  const handlePanelDividerDrag = (deltaX) => {
+    const layout = layoutRef.current;
+    if (!layout) {
+      return;
+    }
+
+    const deltaPercent = (deltaX / layout.offsetWidth) * 100;
+    const nextWidth = clampNotesPanelWidth(panelDragRef.current.startWidth + deltaPercent);
+    setNotesPanelWidth(nextWidth);
+  };
+
+  const handlePanelDividerDragEnd = () => {
+    storeNotesPanelWidth(notesPanelWidth);
+  };
+
   const handleOpenExportModal = () => {
     if (pageCount === 0) {
       return;
@@ -219,7 +249,7 @@ function App() {
 
   return (
     <>
-      <div className="flex h-screen min-h-0 overflow-hidden bg-slate-100 font-sans">
+      <div ref={layoutRef} className="flex h-screen min-h-0 overflow-hidden bg-slate-100 font-sans">
         <ThumbnailBar
           pageCount={pageCount}
           currentIndex={currentIndex}
@@ -257,7 +287,14 @@ function App() {
           />
         </main>
 
+        <PanelDivider
+          onDragStart={handlePanelDividerDragStart}
+          onDrag={handlePanelDividerDrag}
+          onDragEnd={handlePanelDividerDragEnd}
+        />
+
         <NotesPanel
+          width={notesPanelWidth}
           currentIndex={currentIndex}
           notes={notes}
           saveStatus={saveStatus}
