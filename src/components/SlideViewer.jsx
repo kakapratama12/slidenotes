@@ -41,6 +41,18 @@ const SlideViewer = forwardRef(function SlideViewer(
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panSessionRef = useRef(null);
+  const panRef = useRef(pan);
+  const zoomRef = useRef(zoom);
+  const zoomWheelDeltaRef = useRef(0);
+  const zoomWheelRafRef = useRef(null);
+
+  useEffect(() => {
+    panRef.current = pan;
+  }, [pan]);
+
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
@@ -102,8 +114,11 @@ const SlideViewer = forwardRef(function SlideViewer(
       setPan({ x: 0, y: 0 });
       setIsPanning(false);
       panSessionRef.current = null;
+      return;
     }
-  }, [zoom]);
+
+    applyPan(panRef.current.x, panRef.current.y);
+  }, [zoom, applyPan, canvasSize.width, canvasSize.height]);
 
   useEffect(() => {
     if (!isPanning) {
@@ -241,19 +256,51 @@ const SlideViewer = forwardRef(function SlideViewer(
       return undefined;
     }
 
-    const handleWheel = (event) => {
-      if (!event.ctrlKey) {
+    const flushZoomWheel = () => {
+      zoomWheelRafRef.current = null;
+      const accumulatedDelta = zoomWheelDeltaRef.current;
+      zoomWheelDeltaRef.current = 0;
+
+      if (accumulatedDelta === 0) {
         return;
       }
 
-      event.preventDefault();
-      const delta = event.deltaY > 0 ? -0.1 : 0.1;
-      onZoomChange(zoom + delta);
+      const factor = Math.exp(-accumulatedDelta * 0.01);
+      onZoomChange(zoomRef.current * factor);
+    };
+
+    const scheduleZoomWheel = (deltaY) => {
+      zoomWheelDeltaRef.current += deltaY;
+      if (zoomWheelRafRef.current === null) {
+        zoomWheelRafRef.current = requestAnimationFrame(flushZoomWheel);
+      }
+    };
+
+    const handleWheel = (event) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        scheduleZoomWheel(event.deltaY);
+        return;
+      }
+
+      if (zoomRef.current > 1) {
+        event.preventDefault();
+        const { x, y } = panRef.current;
+        applyPan(x - event.deltaX, y - event.deltaY);
+      }
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [zoom, onZoomChange]);
+
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (zoomWheelRafRef.current !== null) {
+        cancelAnimationFrame(zoomWheelRafRef.current);
+        zoomWheelRafRef.current = null;
+      }
+      zoomWheelDeltaRef.current = 0;
+    };
+  }, [applyPan, onZoomChange]);
 
   useEffect(() => {
     if (loading || pageCount === 0 || error) {
