@@ -208,8 +208,6 @@ const SlideViewer = forwardRef(function SlideViewer(
         )}
       </div>
 
-      <HighlightToolbar activeColor={drawColor} onColorChange={onDrawColorChange} />
-
       <div className="mt-3 flex shrink-0 items-center justify-center gap-2">
         <button
           type="button"
@@ -238,6 +236,8 @@ const SlideViewer = forwardRef(function SlideViewer(
           +
         </button>
       </div>
+
+      <HighlightToolbar activeColor={drawColor} onColorChange={onDrawColorChange} />
 
       <div className="mt-4 flex shrink-0 items-center justify-center gap-4">
         <button
