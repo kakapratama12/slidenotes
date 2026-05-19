@@ -73,5 +73,14 @@ Baca sebelum membuat keputusan arsitektur baru.
 
 ---
 
+### ADR-06: electron-builder `arch` di dalam `mac.target`
+- **Status:** accepted
+- **Task:** S4-02
+- **Konteks:** electron-builder 25 menolak `mac.arch` di root level config (`unknown property 'arch'`).
+- **Keputusan:** Set `arch` per target object: `{ "target": "dmg", "arch": ["arm64", "x64"] }`. Output: `release/mac-arm64/SlideNotes.app` (Apple Silicon) dan `release/mac/SlideNotes.app` (x64).
+- **Konsekuensi:** Di mesin arm64, jalankan `.app` dari folder `mac-arm64`. DMG/ZIP terpisah per arsitektur di folder `release/`.
+
+---
+
 *Tambahkan ADR baru setiap kali ada keputusan teknis yang tidak ada di spec awal.*
 *Format: ADR-XX dengan nomor urut berikutnya.*

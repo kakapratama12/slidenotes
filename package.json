@@ -2,11 +2,12 @@
   "name": "slidenotes",
   "version": "0.1.0",
   "description": "Presentation note-taking app for macOS",
+  "author": "SlideNotes",
   "main": "electron/main.js",
   "private": true,
   "scripts": {
     "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && env -u ELECTRON_RUN_AS_NODE electron .\"",
-    "build": "vite build && electron-builder",
+    "build": "vite build && electron-builder --mac",
     "lint": "echo \"lint not configured yet\""
   },
   "dependencies": {
@@ -25,5 +26,38 @@
     "tailwindcss": "^3.4.17",
     "vite": "^6.0.3",
     "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.slidenotes.app",
+    "productName": "SlideNotes",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.productivity"
+    }
   }
 }

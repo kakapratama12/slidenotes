@@ -449,7 +449,7 @@ git checkout -b feature/S4-01-polish
 
 ---
 
-### ⬜ S4-02: Build & Package
+### ✅ S4-02: Build & Package
 
 Buat branch baru:
 
@@ -496,16 +496,16 @@ git checkout -b feature/S4-02-build
 
 ## Checklist MVP
 
-- [ ] S1-01 Project scaffold
-- [ ] S1-02 IPC bridge
-- [ ] S2-01 File open
-- [ ] S2-02 Slide rendering
-- [ ] S2-03 Thumbnail sidebar
-- [ ] S3-01 Notes panel + auto-save
-- [ ] S3-02 Persistent notes
+- [x] S1-01 Project scaffold
+- [x] S1-02 IPC bridge
+- [x] S2-01 File open
+- [x] S2-02 Slide rendering
+- [x] S2-03 Thumbnail sidebar
+- [x] S3-01 Notes panel + auto-save
+- [x] S3-02 Persistent notes
 - [x] S3-03 Export PDF
 - [x] S4-01 Polish
-- [ ] S4-02 Build
+- [x] S4-02 Build
 
 ---
 

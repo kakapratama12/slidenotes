@@ -290,7 +290,7 @@ npm install
 npm run dev          # starts Vite + Electron in dev mode with hot reload
 
 # Build
-npm run build        # bundles React → electron-builder → dist/mac/SlideNotes.app
+npm run build        # bundles React → electron-builder → release/mac-{arch}/SlideNotes.app
 ```
 
 ---
