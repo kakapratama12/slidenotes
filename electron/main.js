@@ -1,7 +1,12 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs/promises');
 const path = require('path');
+const { pathToFileURL } = require('url');
 const { exportNotesPdf } = require('./exporter');
+
+function getRendererIndexPath() {
+  return path.join(app.getAppPath(), 'dist', 'index.html');
+}
 
 function getNotesJsonPath(filePath) {
   const parsed = path.parse(filePath);
@@ -98,7 +103,8 @@ function createWindow() {
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = getRendererIndexPath();
+    mainWindow.loadURL(pathToFileURL(indexPath).href);
   }
 }
 

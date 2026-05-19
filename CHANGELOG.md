@@ -6,6 +6,13 @@ Format: [Semantic Versioning](https://semver.org) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.3.1] — 2026-05 — Hotfix
+
+### Fixed
+- Production `.app` showing raw CSS as text — renderer now loads `dist/index.html` via `app.getAppPath()` and `file://` URL so relative asset paths resolve correctly
+
+---
+
 ## [1.3.0] — 2026-05 — Interaction Polish
 
 ### Added
