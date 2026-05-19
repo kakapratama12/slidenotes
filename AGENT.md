@@ -156,6 +156,7 @@ slidenotes/
 ├── AGENT.md                      ← you are here
 ├── PRD.md
 ├── SlideNotes_Tasks.md
+├── ADR.md                        ← architecture decision records (decisions made during dev)
 ├── package.json
 ├── vite.config.js
 ├── tailwind.config.js
@@ -303,6 +304,32 @@ The `dev` script in `package.json` must unset this variable:
 ```
 
 Do not remove `env -u ELECTRON_RUN_AS_NODE` from the dev script.
+
+---
+
+## ADR — Architecture Decision Records
+
+Every time you make a technical decision that is **not in the spec** (PRD.md / AGENT.md), you MUST document it in `ADR.md` before marking the task done.
+
+**When to write an ADR:**
+- You added an IPC channel that wasn't in the contract
+- You changed a data structure or file format
+- You worked around an environment/platform limitation
+- You chose between two approaches and picked one
+
+**Format — add to ADR.md:**
+```
+### ADR-XX: Short Title
+- **Status:** accepted
+- **Task:** S#-##
+- **Konteks:** Why this decision was needed
+- **Keputusan:** What was decided
+- **Konsekuensi:** Impact / things to watch going forward
+```
+
+Use the next sequential number. Never skip or reuse numbers.
+If AGENT.md also needs updating (new IPC channel, new pattern), update it in the same commit.
+Commit message: `"docs: update ADR and AGENT for SX-XX"`
 
 ---
 
