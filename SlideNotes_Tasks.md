@@ -25,7 +25,7 @@ Jangan tulis satu baris code pun sebelum konfirmasi.
 
 ## Sprint 1 — Foundation
 
-### ⬜ S1-01: Project Scaffold
+### ✅ S1-01: Project Scaffold
 
 Buat branch baru dulu:
 ```
@@ -473,7 +473,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Checklist MVP
 
-- [ ] S1-01 Project scaffold
+- [x] S1-01 Project scaffold
 - [ ] S1-02 IPC bridge
 - [ ] S2-01 File open
 - [ ] S2-02 Slide rendering
