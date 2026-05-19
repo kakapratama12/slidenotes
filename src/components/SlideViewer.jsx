@@ -1,4 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { LAYOUT_ZOOM } from '../constants/appLayout.js';
 import { CURSOR_TOOL, toolToDrawColor } from '../constants/highlightTools.js';
 import { clampPanOffset } from '../utils/slidePan.js';
 import HighlightOverlay from './HighlightOverlay.jsx';
@@ -63,6 +64,7 @@ const SlideViewer = forwardRef(function SlideViewer(
   const drawColor = toolToDrawColor(activeTool);
   const isCursorTool = activeTool === CURSOR_TOOL;
   const canPan = zoom > 1 && isCursorTool;
+  const isZoomLayout = viewLayout === LAYOUT_ZOOM;
 
   const getPanBounds = useCallback(() => {
     const container = scrollRef.current;
@@ -446,7 +448,11 @@ const SlideViewer = forwardRef(function SlideViewer(
         )}
       </div>
 
-      <div className="mt-3 flex shrink-0 items-center justify-center gap-2">
+      <div
+        className={`flex shrink-0 items-center justify-center gap-2 ${
+          isZoomLayout ? 'mt-2' : 'mt-3'
+        }`}
+      >
         <button
           type="button"
           onClick={onZoomOut}
@@ -483,7 +489,11 @@ const SlideViewer = forwardRef(function SlideViewer(
         onToggleLayout={onToggleLayout}
       />
 
-      <div className="mt-4 flex shrink-0 items-center justify-center gap-4">
+      <div
+        className={`flex shrink-0 items-center justify-center gap-4 ${
+          isZoomLayout ? 'mt-2' : 'mt-4'
+        }`}
+      >
         <button
           type="button"
           onClick={onPrev}

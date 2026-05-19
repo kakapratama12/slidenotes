@@ -6,7 +6,7 @@ export default function HighlightNumberBadge({ number, x, y, color }) {
   const badgeHeight = 18;
 
   return (
-    <g pointerEvents="none">
+    <g>
       <rect
         x={x}
         y={y}
@@ -17,12 +17,14 @@ export default function HighlightNumberBadge({ number, x, y, color }) {
       />
       <text
         x={x + badgeWidth / 2}
-        y={y + 13}
+        y={y + badgeHeight / 2}
         textAnchor="middle"
+        dominantBaseline="middle"
         fill="#ffffff"
         fontSize={11}
-        fontWeight="700"
+        fontWeight="bold"
         fontFamily="system-ui, -apple-system, sans-serif"
+        stroke="none"
       >
         {label}
       </text>

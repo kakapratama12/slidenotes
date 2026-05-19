@@ -3,6 +3,10 @@ export const DEFAULT_ZOOM_HIGHLIGHT_WIDTH = 35;
 export const MIN_ZOOM_HIGHLIGHT_WIDTH = 20;
 export const MAX_ZOOM_HIGHLIGHT_WIDTH = 55;
 
+/** Slide area vs bottom panel height ratio in zoom layout (3:2 = 60% / 40%). */
+export const ZOOM_SLIDE_PANEL_FLEX = 3;
+export const ZOOM_BOTTOM_PANEL_FLEX = 2;
+
 export function clampZoomHighlightWidth(width) {
   return Math.min(MAX_ZOOM_HIGHLIGHT_WIDTH, Math.max(MIN_ZOOM_HIGHLIGHT_WIDTH, width));
 }
@@ -10,14 +14,15 @@ export function clampZoomHighlightWidth(width) {
 export function getStoredZoomHighlightWidth() {
   try {
     const stored = Number.parseFloat(localStorage.getItem(ZOOM_HIGHLIGHT_WIDTH_KEY));
-    if (Number.isNaN(stored)) {
-      return DEFAULT_ZOOM_HIGHLIGHT_WIDTH;
-    }
 
-    return clampZoomHighlightWidth(stored);
+    if (!Number.isNaN(stored)) {
+      return clampZoomHighlightWidth(stored);
+    }
   } catch {
-    return DEFAULT_ZOOM_HIGHLIGHT_WIDTH;
+    // ignore
   }
+
+  return DEFAULT_ZOOM_HIGHLIGHT_WIDTH;
 }
 
 export function storeZoomHighlightWidth(width) {

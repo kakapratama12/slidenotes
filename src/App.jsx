@@ -25,6 +25,8 @@ import {
   clampZoomHighlightWidth,
   getStoredZoomHighlightWidth,
   storeZoomHighlightWidth,
+  ZOOM_BOTTOM_PANEL_FLEX,
+  ZOOM_SLIDE_PANEL_FLEX,
 } from './constants/zoomLayout.js';
 import { useNotes } from './hooks/useNotes.js';
 import { getHighlightMarker, getHighlightNumber } from './utils/highlightNumbering.js';
@@ -494,11 +496,17 @@ function App() {
           </>
         ) : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <main className="flex h-[60%] min-h-0 flex-col overflow-hidden p-4">{slideViewer}</main>
+            <main
+              className="flex min-h-0 flex-col overflow-hidden p-4"
+              style={{ flex: `${ZOOM_SLIDE_PANEL_FLEX} 1 0%` }}
+            >
+              {slideViewer}
+            </main>
 
             <div
               ref={zoomBottomRef}
-              className="flex h-[40%] min-h-0 overflow-hidden border-t border-slate-200"
+              className="flex min-h-0 overflow-hidden border-t border-slate-200"
+              style={{ flex: `${ZOOM_BOTTOM_PANEL_FLEX} 1 0%` }}
             >
               <NotesPanel ref={notesPanelRef} variant="bottom" {...notesPanelProps} />
 

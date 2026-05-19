@@ -4,10 +4,10 @@ import {
   HIGHLIGHT_FILL_OPACITY,
 } from '../constants/highlightColors.js';
 import {
+  clampHighlight,
   getHandleCenter,
   HANDLE_CURSORS,
   HANDLE_SIZE,
-  moveHighlight,
   resizeHighlightByDelta,
   RESIZE_HANDLES,
 } from '../utils/highlightGeometry.js';
@@ -28,11 +28,19 @@ function normalizeRect(x1, y1, x2, y2, width, height) {
   return { x, y, width: w, height: h };
 }
 
+/** Map pointer to SVG user space (matches width/height props, including CSS scale/zoom). */
 function getLocalPoint(event, svgElement) {
   const rect = svgElement.getBoundingClientRect();
+  const svgWidth = Number(svgElement.getAttribute('width')) || rect.width;
+  const svgHeight = Number(svgElement.getAttribute('height')) || rect.height;
+
+  if (rect.width === 0 || rect.height === 0) {
+    return { x: 0, y: 0 };
+  }
+
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top,
+    x: ((event.clientX - rect.left) / rect.width) * svgWidth,
+    y: ((event.clientY - rect.top) / rect.height) * svgHeight,
   };
 }
 
@@ -207,6 +215,10 @@ export default function HighlightOverlay({
         type: handle ? 'resize' : 'move',
         handle,
         startPoint: point,
+        pointerOffset: {
+          x: point.x / width - original.x,
+          y: point.y / height - original.y,
+        },
         original,
         preview: { ...original },
       });
@@ -253,7 +265,14 @@ export default function HighlightOverlay({
         const deltaY = (point.y - dragState.startPoint.y) / height;
 
         if (dragState.type === 'move') {
-          const preview = moveHighlight(dragState.original, deltaX, deltaY);
+          const pointerX = point.x / width - dragState.pointerOffset.x;
+          const pointerY = point.y / height - dragState.pointerOffset.y;
+          const preview = clampHighlight({
+            x: pointerX,
+            y: pointerY,
+            width: dragState.original.width,
+            height: dragState.original.height,
+          });
           setDragState((prev) => (prev ? { ...prev, preview } : prev));
         } else {
           const preview = resizeHighlightByDelta(
@@ -364,6 +383,7 @@ export default function HighlightOverlay({
         ref={svgRef}
         width={width}
         height={height}
+        viewBox={`0 0 ${width} ${height}`}
         className="absolute left-0 top-0 touch-none"
         style={{
           cursor: enablePan ? (isPanning ? 'grabbing' : 'grab') : undefined,
@@ -377,7 +397,6 @@ export default function HighlightOverlay({
           const geometry = getDisplayGeometry(highlight);
           const isSelected = highlight.id === selectedId;
           const isFlashing = highlight.id === flashHighlightId;
-          const highlightNumber = getHighlightNumber(highlights, highlight.id);
           const pixelX = geometry.x * width;
           const pixelY = geometry.y * height;
           const pixelW = geometry.width * width;
@@ -413,14 +432,6 @@ export default function HighlightOverlay({
                 onMouseLeave={handleHighlightLeave}
                 onPointerDown={(event) => startDrag(event, highlight, null)}
               />
-              {highlightNumber > 0 && (
-                <HighlightNumberBadge
-                  number={highlightNumber}
-                  x={pixelX + 4}
-                  y={pixelY + 4}
-                  color={highlight.color}
-                />
-              )}
               {showNoteDot && (
                 <circle
                   cx={pixelX + pixelW - 6}
@@ -461,6 +472,27 @@ export default function HighlightOverlay({
           );
         })}
 
+        <g className="pointer-events-none" aria-hidden={highlights.length === 0}>
+          {highlights.map((highlight) => {
+            const geometry = getDisplayGeometry(highlight);
+            const highlightNumber = getHighlightNumber(highlights, highlight);
+
+            if (!highlightNumber) {
+              return null;
+            }
+
+            return (
+              <HighlightNumberBadge
+                key={`badge-${highlight.id}`}
+                number={highlightNumber}
+                x={geometry.x * width + 4}
+                y={geometry.y * height + 4}
+                color={highlight.color}
+              />
+            );
+          })}
+        </g>
+
         {draftRect && drawColor && (
           <rect
             x={draftRect.x * width}
@@ -479,7 +511,7 @@ export default function HighlightOverlay({
       {activeHighlight && !drawMode && !dragState && (
         <HighlightPopup
           anchorRect={anchorRect}
-          highlightNumber={getHighlightNumber(highlights, activeHighlight.id)}
+          highlightNumber={getHighlightNumber(highlights, activeHighlight)}
           note={activeHighlight.note ?? ''}
           onNoteChange={(text) => onUpdateHighlightNote(activeHighlight.id, text)}
           onDelete={handleDeleteActive}
