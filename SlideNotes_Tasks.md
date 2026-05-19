@@ -1246,3 +1246,270 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 ---
 
 *Update status task (⬜ → ✅) setiap kali task selesai dan di-merge ke develop.*
+
+---
+
+## Sprint 10 — Layout, Rich Text & Highlight Numbering
+
+### ⬜ S10-01: Layout Switcher (Default ↔ Zoom Mode)
+
+Buat branch baru:
+```
+git checkout -b feature/S10-01-layout-switcher
+```
+
+**Scope:**
+
+**1. Layout state — `src/App.jsx`:**
+```js
+const [layout, setLayout] = useState('default'); // 'default' | 'zoom'
+```
+- Persist ke localStorage: `slidenotes-layout`
+- Restore saat app buka
+
+**2. Tombol layout switcher di toolbar:**
+```
+[← Home] [↖ Cursor] | [warna] | ... | [⊞ Layout]
+```
+- Icon `⊞` untuk default, `⬒` untuk zoom mode
+- Tooltip: "Switch to Zoom Mode" / "Switch to Default Layout"
+
+**3. Layout Default (as is):**
+```
+[Thumbnail ~220px | Slide flex-1 | Notes Panel X%]
+```
+
+**4. Layout Zoom Mode:**
+```
+┌─────────────────────────────────────┐
+│         Slide (atas, ~60%)          │
+├────────────────────┬────────────────┤
+│   Slide Notes      │  Highlight     │
+│   (kiri, flex-1)   │  Notes         │
+│                    │  (kanan, ~35%) │
+└────────────────────┴────────────────┘
+```
+- Thumbnail sidebar hidden di Zoom mode
+- Slide panel: `height: 60%` dari window
+- Bottom panel: `height: 40%`, split kiri (slide notes) kanan (highlight notes)
+- Divider antara slide notes dan highlight notes bisa di-drag (sama seperti S8-04)
+
+**5. Highlight notes panel (kanan, Zoom mode):**
+- List semua highlight di slide aktif dengan nomor + warna
+- Placeholder: "No highlights on this slide" jika kosong
+- Konten highlight notes list akan diimplementasi di S10-03
+
+**Verify:**
+- Klik `⊞` → layout berubah ke Zoom mode
+- Klik lagi → kembali ke default
+- Zoom mode: thumbnail hidden, slide atas, notes bawah split kiri/kanan
+- Layout preference tersimpan, restore saat buka app
+- Switch layout tidak reset notes atau state lainnya
+
+**Setelah selesai:**
+Commit: `"feat(S10-01): layout switcher with default and zoom mode"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S10-02: Rich Text Notes Editor
+
+Buat branch baru:
+```
+git checkout -b feature/S10-02-rich-text`
+```
+
+**Scope:**
+
+Ganti plain `<textarea>` dengan rich text editor yang support markdown-style formatting.
+
+**1. Library — gunakan `tiptap` (headless rich text editor untuk React):**
+```bash
+npm install @tiptap/react @tiptap/pm @tiptap/starter-kit
+```
+- Support: bold, italic, underline, bullet list, ordered list
+- Output: HTML string (disimpan di JSON, di-render kembali saat load)
+
+**2. Update notes storage format:**
+```json
+"slides": {
+  "0": {
+    "note": "<p>Ini <strong>bold</strong> dan <em>italic</em></p><ul><li>bullet</li></ul>",
+    "highlights": []
+  }
+}
+```
+- Note sekarang HTML string, bukan plain text
+- Backward compatible: plain text string lama tetap bisa di-load (wrap dalam `<p>`)
+
+**3. `src/components/NotesPanel.jsx` — update:**
+- Ganti `<textarea>` dengan Tiptap editor
+- Toolbar formatting di atas editor:
+  ```
+  [B] [I] [U] | [• ] [1.]
+  ```
+- Active state pada tombol toolbar (bold aktif → tombol B highlight)
+- Auto-save tetap debounce 800ms — save HTML string
+
+**4. Keyboard shortcuts:**
+- `Cmd+B` → bold
+- `Cmd+I` → italic
+- `Cmd+U` → underline
+
+**5. Zoom mode — same editor, kiri panel:**
+- Editor tetap sama di kedua layout
+- Lebar menyesuaikan panel yang tersedia
+
+**Verify:**
+- Ketik di editor → bold/italic/underline/bullet berfungsi
+- Toolbar tombol aktif sesuai format di posisi cursor
+- Cmd+B/I/U → shortcut berfungsi
+- Auto-save tetap berjalan
+- Reload app → formatting tersimpan dan muncul kembali
+- Plain text notes lama → tetap bisa dibaca, tidak corrupt
+
+**Setelah selesai:**
+Commit: `"feat(S10-02): rich text notes editor with formatting toolbar"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S10-03: Highlight Numbering System
+
+Buat branch baru:
+```
+git checkout -b feature/S10-03-highlight-numbering
+```
+
+**Scope:**
+
+**1. Auto-numbering logic — `src/hooks/useNotes.js`:**
+- Nomor di-assign berdasarkan posisi highlight (kiri→kanan, atas→bawah)
+- Sort by: `y` ascending, lalu `x` ascending
+- Nomor re-assign otomatis setiap kali:
+  - Highlight baru dibuat
+  - Highlight dihapus
+  - Highlight dipindah (move)
+- Nomor tidak disimpan di JSON — selalu dihitung on-the-fly dari posisi
+
+```js
+function getHighlightNumber(highlights, highlightId) {
+  const sorted = [...highlights].sort((a, b) => 
+    a.y !== b.y ? a.y - b.y : a.x - b.x
+  );
+  return sorted.findIndex(h => h.id === highlightId) + 1;
+}
+```
+
+**2. Nomor tampil di highlight box — `HighlightOverlay.jsx`:**
+- Nomor kecil di pojok kiri atas setiap highlight box
+- Warna teks: putih, background: warna highlight lebih gelap
+- Ukuran: ~14px, tidak mengganggu konten slide
+
+**3. Auto-insert marker di notes editor — `src/App.jsx`:**
+- Saat highlight baru dibuat → append `[N]` di akhir notes editor
+  ```
+  [N] ← cursor di sini, user langsung bisa ketik
+  ```
+- Jika notes kosong → insert `[N] `
+- Jika notes sudah ada isi → insert `\n[N] ` (newline dulu)
+
+**4. Highlight Notes List — `src/components/HighlightNotesList.jsx`:**
+- Dipakai di Zoom mode (panel kanan bawah)
+- List semua highlight di slide aktif, urut by nomor
+- Tiap item:
+  ```
+  [warna dot] [N] highlight note text...
+  ```
+- Klik item → scroll/jump ke highlight di slide (flash highlight sebentar)
+- Klik highlight di slide → scroll ke item di list (highlight item)
+- Placeholder: "No highlights on this slide"
+- Note per highlight tetap bisa diedit inline di list ini
+
+**5. Update `HighlightPopup.jsx`:**
+- Tambah nomor di header popup: `Highlight [N]`
+- Popup tetap muncul saat hover (same as before)
+
+**Verify:**
+- Buat highlight → nomor muncul di pojok kiri atas kotak
+- Buat highlight kedua → nomor assign by position
+- Hapus highlight #1 → highlight #2 jadi #1 otomatis
+- Pindah highlight → nomor re-assign
+- Buat highlight baru → `[N]` auto-insert di notes editor
+- Zoom mode → highlight notes list tampil di panel kanan bawah
+- Klik item di list → jump ke highlight di slide
+- Klik highlight di slide → item di list ter-highlight
+
+**Setelah selesai:**
+Commit: `"feat(S10-03): highlight numbering system with auto-insert and list panel"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S10-04: Update Export PDF
+
+Buat branch baru:
+```
+git checkout -b feature/S10-04-export-update
+```
+
+**Scope:**
+
+Update `electron/exporter.js` untuk reflect semua perubahan S10-01 sampai S10-03.
+
+**1. Render rich text notes:**
+- Notes sekarang HTML string → parse HTML sebelum render ke PDF
+- Strip HTML tags untuk plain text di PDF, tapi pertahankan struktur:
+  - `<strong>` → bold font
+  - `<em>` → italic font
+  - `<ul><li>` → bullet list dengan indent
+  - `<ol><li>` → numbered list dengan indent
+- Gunakan `pdf-lib` dengan font embedding untuk bold/italic
+
+**2. Render highlight boxes dengan nomor:**
+- Setiap highlight box di slide image → gambar nomor di pojok kiri atas
+- Nomor: background warna highlight gelap, teks putih, font kecil
+
+**3. Highlight Notes section di PDF:**
+```
+[Slide image dengan highlight boxes + nomor]
+────────────────────────────────────────────
+Notes:
+Ini poin penting tentang sosiologi...
+[1] Mills bilang blah blah
+[2] Bagian ini menarik
+
+Highlight Notes:
+[1] 🟡 "detail note untuk highlight 1"
+[2] 🔵 "detail note untuk highlight 2"
+```
+- Section "Highlight Notes:" hanya muncul jika ada highlight dengan note
+- Highlight tanpa note → tidak muncul di section teks, tapi tetap keliatan di gambar + nomor
+
+**4. Layout options tetap berfungsi:**
+- `1-per-page`, `2-per-page`, `notes-only` — semua support rich text + highlight notes
+- `notes-only` → render rich text + highlight notes sebagai plain text dengan marker
+
+**Verify:**
+- Export PDF → notes dengan bold/italic/bullet ter-render dengan benar
+- Highlight boxes di gambar slide punya nomor di pojok
+- Section "Highlight Notes:" muncul untuk slide yang punya highlight dengan note
+- Semua layout options tetap berfungsi
+- Slide tanpa highlight → tidak ada section "Highlight Notes:"
+
+**Setelah selesai:**
+Commit: `"feat(S10-04): update PDF export for rich text and highlight numbering"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+## Checklist v1.5.0
+
+- [ ] S10-01 Layout switcher
+- [ ] S10-02 Rich text notes editor
+- [ ] S10-03 Highlight numbering system
+- [ ] S10-04 Update export PDF
+
+---
+
+*Update status task (⬜ → ✅) setiap kali task selesai dan di-merge ke develop.*
