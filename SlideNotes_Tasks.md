@@ -174,7 +174,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S2-02: Slide Rendering & Navigation
+### ✅ S2-02: Slide Rendering & Navigation
 
 Buat branch baru:
 ```
@@ -476,7 +476,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S1-01 Project scaffold
 - [x] S1-02 IPC bridge
 - [x] S2-01 File open
-- [ ] S2-02 Slide rendering
+- [x] S2-02 Slide rendering
 - [ ] S2-03 Thumbnail sidebar
 - [ ] S3-01 Notes panel + auto-save
 - [ ] S3-02 Persistent notes

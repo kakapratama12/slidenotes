@@ -1,12 +1,22 @@
 import { useState } from 'react';
 import DropZone from './components/DropZone.jsx';
+import SlideViewer from './components/SlideViewer.jsx';
+import { useSlides } from './hooks/useSlides.js';
 
 function App() {
   const [filePath, setFilePath] = useState(null);
-  const [pageCount, setPageCount] = useState(0);
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [notes, setNotes] = useState({});
   const [saveStatus, setSaveStatus] = useState('saved');
+
+  const {
+    pageCount,
+    currentIndex,
+    loading,
+    error,
+    goNext,
+    goPrev,
+    renderPage,
+  } = useSlides(filePath);
 
   if (filePath === null) {
     return <DropZone onFileSelected={setFilePath} />;
@@ -20,11 +30,16 @@ function App() {
         </p>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col border-r border-slate-200 bg-white p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Slide Viewer
-        </p>
-        <p className="mt-2 truncate text-sm text-slate-600">{filePath}</p>
+      <main className="flex min-w-0 flex-1 flex-col p-4">
+        <SlideViewer
+          pageCount={pageCount}
+          currentIndex={currentIndex}
+          loading={loading}
+          error={error}
+          onPrev={goPrev}
+          onNext={goNext}
+          renderPage={renderPage}
+        />
       </main>
 
       <aside className="w-[35%] max-w-md shrink-0 bg-white p-4">

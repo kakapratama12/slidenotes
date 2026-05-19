@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const fs = require('fs/promises');
 const path = require('path');
 
 function registerIpcHandlers() {
@@ -13,6 +14,11 @@ function registerIpcHandlers() {
     }
 
     return filePaths[0];
+  });
+
+  ipcMain.handle('read-pdf-file', async (_event, filePath) => {
+    const buffer = await fs.readFile(filePath);
+    return Uint8Array.from(buffer);
   });
 
   ipcMain.handle('load-notes', async () => {
