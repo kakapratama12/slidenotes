@@ -527,7 +527,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 5 — Zoom & Search
 
-### ✅ S5-01: Zoom on Slide
+### ⬜ S5-01: Zoom on Slide
 
 Buat branch baru:
 ```
@@ -565,7 +565,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S5-02: Search Notes
+### ⬜ S5-02: Search Notes
 
 Buat branch baru:
 ```
@@ -616,7 +616,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 6 — Highlight Annotation
 
-### ✅ S6-01: Draw Highlight Box
+### ⬜ S6-01: Draw Highlight Box
 
 Buat branch baru:
 ```
@@ -664,7 +664,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S6-02: Highlight Note (Popup + Input)
+### ⬜ S6-02: Highlight Note (Popup + Input)
 
 Buat branch baru:
 ```
@@ -713,7 +713,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S6-03: Highlight di Export PDF
+### ⬜ S6-03: Highlight di Export PDF
 
 Buat branch baru:
 ```
@@ -770,7 +770,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 7 — Export Options
 
-### ✅ S7-01: Opsi Layout Export PDF
+### ⬜ S7-01: Opsi Layout Export PDF
 
 Buat branch baru:
 ```
@@ -815,14 +815,236 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-## Checklist v1.2
+## Checklist v1.1
 
-- [x] S5-01 Zoom on slide
-- [x] S5-02 Search notes
-- [x] S6-01 Draw highlight box
-- [x] S6-02 Highlight note popup
-- [x] S6-03 Highlight di export PDF
-- [x] S7-01 Opsi layout export
+- [ ] S5-01 Zoom on slide
+- [ ] S5-02 Search notes
+- [ ] S6-01 Draw highlight box
+- [ ] S6-02 Highlight note popup
+- [ ] S6-03 Highlight di export PDF
+- [ ] S7-01 Opsi layout export
+
+---
+
+*Update status task (⬜ → ✅) setiap kali task selesai dan di-merge ke develop.*
+
+---
+
+## Sprint 8 — Interaction Polish
+
+### ✅ S8-01: Toolbar Redesign & Draw Mode Behaviour
+
+Buat branch baru:
+```
+git checkout -b feature/S8-01-toolbar-redesign
+```
+
+**Scope:**
+
+1. `src/components/HighlightToolbar.jsx` — redesign toolbar:
+   - Tambah **Cursor tool** button di kiri (icon: `↖` atau cursor SVG)
+   - Separator visual antara Cursor tool dan warna picker
+   - Layout: `[↖ Cursor] | [🟡] [🟢] [🔴] [🔵] [🟣]`
+   - Cursor tool aktif by default saat file dibuka
+   - Active state: border/background highlight untuk tool yang aktif
+
+2. Mode state — ganti dari `activeColor` menjadi `activeTool`:
+   ```js
+   // Tool state
+   activeTool: 'cursor' | 'yellow' | 'green' | 'red' | 'blue' | 'purple'
+   ```
+   - Klik Cursor → `activeTool = 'cursor'`
+   - Klik warna → `activeTool = warna tersebut`
+   - Klik warna yang sudah aktif → **tidak** kembali ke cursor (tetap di draw mode)
+   - `Esc` key → kembali ke `activeTool = 'cursor'`
+
+3. Draw mode behaviour:
+   - Setelah mouse up (selesai draw satu highlight) → **tetap di draw mode warna yang sama**
+   - Tidak otomatis kembali ke cursor
+   - User harus eksplisit klik Cursor atau tekan `Esc` untuk exit draw mode
+
+4. Cursor visual saat draw mode aktif:
+   - Cursor berubah jadi `crosshair` di atas area slide
+   - Cursor normal di luar area slide
+
+**Verify:**
+- Default buka file → Cursor tool aktif
+- Klik warna → draw mode aktif, cursor jadi crosshair di slide
+- Draw highlight → selesai, tetap di draw mode warna sama, bisa draw lagi langsung
+- Klik warna aktif → tetap draw mode (tidak exit)
+- Tekan `Esc` → kembali ke Cursor tool
+- Klik Cursor tool → kembali ke Cursor tool
+
+**Setelah selesai:**
+Commit: `"feat(S8-01): toolbar redesign with cursor tool and persistent draw mode"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S8-02: Move & Resize Highlight
+
+Buat branch baru:
+```
+git checkout -b feature/S8-02-highlight-move-resize
+```
+
+**Scope:**
+
+Behaviour context-aware saat Cursor tool aktif:
+
+**Hover highlight:**
+- Cursor berubah jadi `move` (✋)
+- Muncul 8 resize handles di sudut dan sisi tengah kotak (kecil, ~8px, warna highlight)
+- Handle di sudut → cursor `nwse-resize` / `nesw-resize`
+- Handle di sisi → cursor `ew-resize` / `ns-resize`
+
+**Drag highlight (move):**
+- Drag dari dalam kotak (bukan handle) → move highlight
+- Kotak ikut posisi mouse, koordinat diupdate real-time
+- Mouse up → simpan koordinat baru (normalized 0–1) ke notes JSON via auto-save
+
+**Drag handle (resize):**
+- Drag handle sudut/sisi → resize kotak
+- Min ukuran: 2% × 2% normalized (hindari kotak terlalu kecil)
+- Mouse up → simpan ukuran baru ke notes JSON
+
+**Implementasi di `HighlightOverlay.jsx`:**
+- SVG overlay sudah ada — tambah logic drag pada `<rect>` highlight
+- Track: `isDragging`, `dragType: 'move'|'resize'`, `dragHandle`, `dragStart`
+- `onMouseMove` di SVG → update posisi/ukuran sementara (preview)
+- `onMouseUp` → commit ke state + trigger auto-save
+
+**Rules:**
+- Koordinat selalu dalam normalized 0–1 — convert dari pixel saat drag, simpan normalized
+- Highlight tidak boleh keluar batas slide (clamp ke 0–1)
+- Move & resize hanya aktif saat `activeTool === 'cursor'`
+- Saat draw mode aktif (warna dipilih) → drag di atas highlight = draw highlight baru, bukan move
+
+**Verify:**
+- Cursor tool aktif, hover highlight → cursor jadi ✋, handles muncul
+- Drag highlight → pindah posisi, tersimpan di JSON
+- Drag corner handle → resize, tersimpan di JSON
+- Highlight tidak bisa keluar batas slide
+- Draw mode aktif → drag di atas highlight = draw baru (bukan move)
+- Reload app → posisi & ukuran baru tersimpan
+
+**Setelah selesai:**
+Commit: `"feat(S8-02): move and resize highlight with drag handles"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S8-03: Pan Slide saat Zoom In
+
+Buat branch baru:
+```
+git checkout -b feature/S8-03-pan-slide
+```
+
+**Scope:**
+
+Pan hanya aktif saat `zoom > 1.0`. Saat zoom normal (1.0) tidak ada yang di-pan.
+
+**Behaviour context-aware (Cursor tool aktif):**
+```
+Zoom > 1.0, drag di slide kosong  → pan viewport (geser slide)
+Zoom > 1.0, drag di atas highlight → move highlight (S8-02)
+Zoom = 1.0, drag di mana pun      → tidak ada efek
+```
+
+**Implementasi:**
+1. `src/components/SlideViewer.jsx` — tambah pan state:
+   - `panX: number`, `panY: number` — offset viewport dalam pixel
+   - Reset ke `{ 0, 0 }` saat ganti slide atau zoom reset
+
+2. Canvas container — apply transform gabungan:
+   ```css
+   transform: translate(panX px, panY px) scale(zoom);
+   transform-origin: top left;
+   ```
+
+3. Mouse event di slide area:
+   - `onMouseDown` di slide (bukan di highlight) → mulai pan, cursor jadi `grabbing`
+   - `onMouseMove` → update panX/panY
+   - `onMouseUp` → stop pan
+   - Clamp pan agar slide tidak keluar batas container sepenuhnya
+
+4. `HighlightOverlay.jsx` — pan tidak mempengaruhi koordinat highlight (highlight ikut canvas, bukan viewport)
+
+5. Cursor visual:
+   - Zoom > 1.0, hover slide kosong → cursor `grab`
+   - Zoom > 1.0, sedang drag → cursor `grabbing`
+   - Zoom = 1.0 → cursor normal
+
+**Verify:**
+- Zoom in → drag slide kosong = pan viewport, slide bergeser
+- Zoom in → drag di atas highlight = move highlight (bukan pan)
+- Zoom out ke 100% → drag tidak melakukan apa-apa
+- Ganti slide → pan reset ke posisi awal
+- Zoom reset (Cmd+0) → pan juga reset
+
+**Setelah selesai:**
+Commit: `"feat(S8-03): pan slide viewport on drag when zoomed in"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S8-04: Draggable Panel Divider
+
+Buat branch baru:
+```
+git checkout -b feature/S8-04-panel-resize
+```
+
+**Scope:**
+
+User bisa drag divider antara Slide panel dan Notes panel untuk resize proporsinya.
+
+1. `src/components/PanelDivider.jsx` — komponen divider:
+   - Vertical bar tipis (~4px) antara Slide panel dan Notes panel
+   - Hover → warna berubah + cursor `col-resize`
+   - Drag → resize panel kiri dan kanan secara proporsional
+
+2. `src/App.jsx` — panel width via state:
+   ```js
+   const [notesPanelWidth, setNotesPanelWidth] = useState(35); // persen
+   ```
+   - Min notes panel: 20%
+   - Max notes panel: 50%
+   - Slide panel = sisa setelah thumbnail (~220px) dan notes panel
+   - Apply via inline style: `width: \`${notesPanelWidth}%\``
+
+3. Drag logic di `PanelDivider.jsx`:
+   - `onMouseDown` → mulai drag, attach `mousemove` + `mouseup` ke `document`
+   - `onMouseMove` → hitung delta X, update `notesPanelWidth`
+   - `onMouseUp` → stop drag, detach listeners
+   - Simpan ke `localStorage` saat drag selesai
+
+4. Persist & restore:
+   - Load dari `localStorage` saat app buka
+   - Key: `slidenotes-notes-panel-width`
+   - Fallback ke 35 jika tidak ada
+
+**Verify:**
+- Hover divider → cursor `col-resize`, divider highlight
+- Drag kanan → notes panel melebar, slide panel menyempit
+- Drag kiri → notes panel menyempit, slide panel melebar
+- Min/max terpenuhi — tidak bisa drag terlalu kecil/besar
+- Reload app → proporsi panel tersimpan
+- Thumbnail sidebar tidak terpengaruh (lebar fixed ~220px)
+
+**Setelah selesai:**
+Commit: `"feat(S8-04): draggable panel divider with localStorage persist"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+## Checklist v1.3
+
+- [x] S8-01 Toolbar redesign & draw mode
+- [ ] S8-02 Move & resize highlight
+- [ ] S8-03 Pan slide saat zoom in
+- [ ] S8-04 Draggable panel divider
 
 ---
 

@@ -6,6 +6,7 @@ import ThumbnailBar from './components/ThumbnailBar.jsx';
 import SearchPanel from './components/SearchPanel.jsx';
 import ExportModal from './components/ExportModal.jsx';
 import Toast from './components/Toast.jsx';
+import { CURSOR_TOOL } from './constants/highlightTools.js';
 import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
 
@@ -19,7 +20,7 @@ function App() {
   const [exportMessage, setExportMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [drawColor, setDrawColor] = useState(null);
+  const [activeTool, setActiveTool] = useState(CURSOR_TOOL);
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const slideViewerRef = useRef(null);
@@ -59,6 +60,7 @@ function App() {
     }
 
     window.electronAPI.setWindowTitle(`SlideNotes — ${getFileName(filePath)}`);
+    setActiveTool(CURSOR_TOOL);
   }, [filePath]);
 
   useEffect(() => {
@@ -133,6 +135,10 @@ function App() {
       if (event.metaKey && event.key.toLowerCase() === 'f') {
         event.preventDefault();
         setSearchOpen((open) => !open);
+      }
+
+      if (event.key === 'Escape') {
+        setActiveTool(CURSOR_TOOL);
       }
     };
 
@@ -235,8 +241,8 @@ function App() {
             renderPage={renderPage}
             captureSlide={captureSlide}
             highlights={slideHighlights}
-            drawColor={drawColor}
-            onDrawColorChange={setDrawColor}
+            activeTool={activeTool}
+            onActiveToolChange={setActiveTool}
             selectedHighlightId={selectedHighlightId}
             onSelectHighlight={setSelectedHighlightId}
             onAddHighlight={handleAddHighlight}

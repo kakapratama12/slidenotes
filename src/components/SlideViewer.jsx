@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { toolToDrawColor } from '../constants/highlightTools.js';
 import HighlightOverlay from './HighlightOverlay.jsx';
 import HighlightToolbar from './HighlightToolbar.jsx';
 
@@ -19,8 +20,8 @@ const SlideViewer = forwardRef(function SlideViewer(
     renderPage,
     captureSlide,
     highlights,
-    drawColor,
-    onDrawColorChange,
+    activeTool,
+    onActiveToolChange,
     selectedHighlightId,
     onSelectHighlight,
     onAddHighlight,
@@ -38,6 +39,7 @@ const SlideViewer = forwardRef(function SlideViewer(
   const isFirstSlide = currentIndex <= 0;
   const isLastSlide = pageCount === 0 || currentIndex >= pageCount - 1;
   const zoomPercent = Math.round(zoom * 100);
+  const drawColor = toolToDrawColor(activeTool);
 
   useImperativeHandle(
     ref,
@@ -189,7 +191,9 @@ const SlideViewer = forwardRef(function SlideViewer(
         className="relative min-h-0 flex-1 overflow-auto rounded-lg bg-slate-50 p-4"
       >
         <div
-          className="relative inline-block origin-top-left shadow-sm"
+          className={`relative inline-block origin-top-left shadow-sm ${
+            drawColor ? 'cursor-crosshair' : ''
+          }`}
           style={{ transform: `scale(${zoom})` }}
         >
           <canvas ref={canvasRef} className="block" />
@@ -241,7 +245,7 @@ const SlideViewer = forwardRef(function SlideViewer(
         </button>
       </div>
 
-      <HighlightToolbar activeColor={drawColor} onColorChange={onDrawColorChange} />
+      <HighlightToolbar activeTool={activeTool} onToolChange={onActiveToolChange} />
 
       <div className="mt-4 flex shrink-0 items-center justify-center gap-4">
         <button

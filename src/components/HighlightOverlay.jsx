@@ -243,8 +243,7 @@ export default function HighlightOverlay({
         ref={svgRef}
         width={width}
         height={height}
-        className="absolute left-0 top-0 touch-none"
-        style={{ cursor: drawMode ? 'crosshair' : 'default' }}
+      className="absolute left-0 top-0 touch-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
