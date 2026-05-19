@@ -4,6 +4,7 @@ import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
 import ThumbnailBar from './components/ThumbnailBar.jsx';
 import SearchPanel from './components/SearchPanel.jsx';
+import ExportModal from './components/ExportModal.jsx';
 import Toast from './components/Toast.jsx';
 import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
@@ -20,6 +21,7 @@ function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawColor, setDrawColor] = useState(null);
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
+  const [exportModalOpen, setExportModalOpen] = useState(false);
   const slideViewerRef = useRef(null);
 
   const {
@@ -145,11 +147,26 @@ function App() {
     setToastMessage('');
   };
 
-  const handleExportPdf = async () => {
-    if (!filePath || pageCount === 0 || !slideViewerRef.current) {
+  const handleOpenExportModal = () => {
+    if (pageCount === 0) {
       return;
     }
 
+    setExportModalOpen(true);
+  };
+
+  const handleExportPdf = async (layout) => {
+    if (!filePath || pageCount === 0) {
+      return;
+    }
+
+    const needsSlideImages = layout !== 'notes-only';
+
+    if (needsSlideImages && !slideViewerRef.current) {
+      return;
+    }
+
+    setExportModalOpen(false);
     setExportStatus('exporting');
     setExportMessage('Exporting...');
     setToastMessage('');
@@ -157,13 +174,20 @@ function App() {
     try {
       const slideImages = [];
 
-      for (let index = 0; index < pageCount; index += 1) {
-        const highlights = notes[String(index)]?.highlights ?? [];
-        const image = await slideViewerRef.current.captureSlide(index, highlights);
-        slideImages.push(image);
+      if (needsSlideImages) {
+        for (let index = 0; index < pageCount; index += 1) {
+          const highlights = notes[String(index)]?.highlights ?? [];
+          const image = await slideViewerRef.current.captureSlide(index, highlights);
+          slideImages.push(image);
+        }
       }
 
-      const result = await window.electronAPI.exportPdf(filePath, slideImages, notes);
+      const result = await window.electronAPI.exportPdf(
+        filePath,
+        slideImages,
+        notes,
+        layout,
+      );
 
       if (result?.ok) {
         setExportStatus('success');
@@ -226,7 +250,7 @@ function App() {
           notes={notes}
           saveStatus={saveStatus}
           onNoteChange={updateNote}
-          onExport={handleExportPdf}
+          onExport={handleOpenExportModal}
           exportStatus={exportStatus}
           exportMessage={exportMessage}
         />
@@ -237,6 +261,13 @@ function App() {
         notes={notes}
         onClose={() => setSearchOpen(false)}
         onSelectResult={goTo}
+      />
+
+      <ExportModal
+        isOpen={exportModalOpen}
+        isExporting={exportStatus === 'exporting'}
+        onCancel={() => setExportModalOpen(false)}
+        onExport={handleExportPdf}
       />
 
       <Toast

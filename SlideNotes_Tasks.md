@@ -759,7 +759,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 7 — Export Options
 
-### ⬜ S7-01: Opsi Layout Export PDF
+### ✅ S7-01: Opsi Layout Export PDF
 
 Buat branch baru:
 ```
@@ -811,7 +811,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S6-01 Draw highlight box
 - [x] S6-02 Highlight note popup
 - [x] S6-03 Highlight di export PDF
-- [ ] S7-01 Opsi layout export
+- [x] S7-01 Opsi layout export
 
 ---
 

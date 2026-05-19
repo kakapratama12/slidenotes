@@ -63,9 +63,9 @@ function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('export-pdf', async (_event, { filePath, slideImages, notes }) => {
+  ipcMain.handle('export-pdf', async (_event, { filePath, slideImages, notes, layout }) => {
     try {
-      const exportPath = await exportNotesPdf({ filePath, slideImages, notes });
+      const exportPath = await exportNotesPdf({ filePath, slideImages, notes, layout });
       return { ok: true, exportPath };
     } catch (error) {
       console.error('export-pdf failed:', error);

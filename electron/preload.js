@@ -5,7 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readPdfFile: (filePath) => ipcRenderer.invoke('read-pdf-file', filePath),
   loadNotes: (filePath) => ipcRenderer.invoke('load-notes', filePath),
   saveNotes: (filePath, notes) => ipcRenderer.invoke('save-notes', { filePath, notes }),
-  exportPdf: (filePath, slideImages, notes) =>
-    ipcRenderer.invoke('export-pdf', { filePath, slideImages, notes }),
+  exportPdf: (filePath, slideImages, notes, layout) =>
+    ipcRenderer.invoke('export-pdf', { filePath, slideImages, notes, layout }),
   setWindowTitle: (title) => ipcRenderer.invoke('set-window-title', title),
 });
