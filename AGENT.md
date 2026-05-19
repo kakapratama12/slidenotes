@@ -290,6 +290,20 @@ npm run build        # bundles React → electron-builder → dist/mac/SlideNote
 
 ---
 
+## Known Environment Issue — Cursor / AI Agent
+
+Cursor sets `ELECTRON_RUN_AS_NODE=1` by default, which breaks `require('electron')`  and prevents the Electron window from opening.
+
+The `dev` script in `package.json` must unset this variable:
+
+```json
+"dev": "concurrently \"vite\" \"env -u ELECTRON_RUN_AS_NODE electron .\""
+```
+
+Do not remove `env -u ELECTRON_RUN_AS_NODE` from the dev script.
+
+---
+
 ## Security Notes
 
 - Never set `contextIsolation: false` — keep it `true` (Electron default)
