@@ -25,8 +25,23 @@ function registerIpcHandlers() {
     return null;
   });
 
-  ipcMain.handle('save-notes', async () => {
-    return { ok: true };
+  ipcMain.handle('save-notes', async (_event, { filePath, notes }) => {
+    try {
+      const parsed = path.parse(filePath);
+      const jsonPath = path.join(parsed.dir, `${parsed.name}.slidenotes.json`);
+      const payload = {
+        version: 1,
+        sourceFile: filePath,
+        lastOpened: new Date().toISOString(),
+        slides: notes,
+      };
+
+      await fs.writeFile(jsonPath, JSON.stringify(payload, null, 2), 'utf-8');
+      return { ok: true };
+    } catch (error) {
+      console.error('save-notes failed:', error);
+      return { ok: false };
+    }
   });
 
   ipcMain.handle('export-pdf', async () => {

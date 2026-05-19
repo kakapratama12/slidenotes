@@ -256,7 +256,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 3 — Notes & Export
 
-### ⬜ S3-01: Notes Panel & Auto-save
+### ✅ S3-01: Notes Panel & Auto-save
 
 Buat branch baru:
 ```
@@ -478,7 +478,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S2-01 File open
 - [x] S2-02 Slide rendering
 - [x] S2-03 Thumbnail sidebar
-- [ ] S3-01 Notes panel + auto-save
+- [x] S3-01 Notes panel + auto-save
 - [ ] S3-02 Persistent notes
 - [ ] S3-03 Export PDF
 - [ ] S4-01 Polish

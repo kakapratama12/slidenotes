@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import DropZone from './components/DropZone.jsx';
+import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
 import ThumbnailBar from './components/ThumbnailBar.jsx';
+import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
 
 function App() {
   const [filePath, setFilePath] = useState(null);
-  const [notes, setNotes] = useState({});
-  const [saveStatus, setSaveStatus] = useState('saved');
 
   const {
     pageCount,
@@ -20,6 +20,8 @@ function App() {
     renderPage,
     renderThumbnail,
   } = useSlides(filePath);
+
+  const { notes, updateNote, saveStatus } = useNotes(filePath);
 
   if (filePath === null) {
     return <DropZone onFileSelected={setFilePath} />;
@@ -47,15 +49,12 @@ function App() {
         />
       </main>
 
-      <aside className="w-[35%] max-w-md shrink-0 bg-white p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-          Notes Panel
-        </p>
-        <p className="mt-2 text-sm text-slate-400">
-          Slide {currentIndex + 1}
-          {pageCount > 0 ? ` / ${pageCount}` : ''} · {saveStatus}
-        </p>
-      </aside>
+      <NotesPanel
+        currentIndex={currentIndex}
+        notes={notes}
+        saveStatus={saveStatus}
+        onNoteChange={updateNote}
+      />
     </div>
   );
 }
