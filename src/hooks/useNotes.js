@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 function debounce(fn, delayMs) {
   let timeoutId;
@@ -16,6 +16,11 @@ function debounce(fn, delayMs) {
 export function useNotes(filePath) {
   const [notes, setNotes] = useState({});
   const [saveStatus, setSaveStatus] = useState('saved');
+  const notesRef = useRef(notes);
+
+  useEffect(() => {
+    notesRef.current = notes;
+  }, [notes]);
 
   const persistNotes = useCallback(async (notesToSave) => {
     if (!filePath) {
@@ -190,6 +195,15 @@ export function useNotes(filePath) {
     [saveDebounced],
   );
 
+  const flushSave = useCallback(async () => {
+    if (!filePath) {
+      return;
+    }
+
+    saveDebounced.cancel();
+    await persistNotes(notesRef.current);
+  }, [filePath, saveDebounced, persistNotes]);
+
   return {
     notes,
     updateNote,
@@ -199,5 +213,6 @@ export function useNotes(filePath) {
     updateHighlight,
     saveStatus,
     hydrateNotes,
+    flushSave,
   };
 }

@@ -20,11 +20,22 @@ function CursorIcon() {
   );
 }
 
-export default function HighlightToolbar({ activeTool, onToolChange }) {
+export default function HighlightToolbar({ activeTool, onToolChange, onGoHome }) {
   const isCursorActive = activeTool === CURSOR_TOOL;
 
   return (
     <div className="mt-3 flex shrink-0 items-center justify-center gap-2">
+      <button
+        type="button"
+        onClick={onGoHome}
+        className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+        aria-label="Back to home"
+      >
+        ← Home
+      </button>
+
+      <div className="mx-1 h-6 w-px bg-slate-300" aria-hidden />
+
       <button
         type="button"
         title="Cursor"

@@ -23,6 +23,7 @@ const SlideViewer = forwardRef(function SlideViewer(
     highlights,
     activeTool,
     onActiveToolChange,
+    onGoHome,
     selectedHighlightId,
     onSelectHighlight,
     onAddHighlight,
@@ -389,7 +390,11 @@ const SlideViewer = forwardRef(function SlideViewer(
         </button>
       </div>
 
-      <HighlightToolbar activeTool={activeTool} onToolChange={onActiveToolChange} />
+      <HighlightToolbar
+        activeTool={activeTool}
+        onToolChange={onActiveToolChange}
+        onGoHome={onGoHome}
+      />
 
       <div className="mt-4 flex shrink-0 items-center justify-center gap-4">
         <button

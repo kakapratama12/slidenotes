@@ -4,9 +4,10 @@ function isPdfPath(filePath) {
   return typeof filePath === 'string' && filePath.toLowerCase().endsWith('.pdf');
 }
 
-export default function DropZone({ onFileSelected }) {
+export default function DropZone({ onFileSelected, embedded = false, isDragging: isDraggingProp }) {
   const [error, setError] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDraggingLocal, setIsDraggingLocal] = useState(false);
+  const isDragging = embedded ? Boolean(isDraggingProp) : isDraggingLocal;
 
   const selectFile = (filePath) => {
     if (!isPdfPath(filePath)) {
@@ -28,16 +29,16 @@ export default function DropZone({ onFileSelected }) {
   const handleDragOver = (event) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
-    setIsDragging(true);
+    setIsDraggingLocal(true);
   };
 
   const handleDragLeave = () => {
-    setIsDragging(false);
+    setIsDraggingLocal(false);
   };
 
   const handleDrop = (event) => {
     event.preventDefault();
-    setIsDragging(false);
+    setIsDraggingLocal(false);
 
     const file = event.dataTransfer.files[0];
     if (!file) {
@@ -47,6 +48,36 @@ export default function DropZone({ onFileSelected }) {
     selectFile(file.path);
   };
 
+  const dropArea = (
+    <button
+      type="button"
+      onClick={handleClick}
+      className={`flex w-full max-w-lg flex-col items-center rounded-xl border-2 border-dashed px-12 py-16 text-center transition-colors ${
+        isDragging
+          ? 'border-blue-500 bg-blue-50'
+          : 'border-slate-300 bg-white hover:border-slate-400'
+      }`}
+    >
+      <p className="text-lg font-medium text-slate-800">
+        Drop a PDF file here, or click to browse
+      </p>
+      <p className="mt-2 text-sm text-slate-500">PDF files only</p>
+    </button>
+  );
+
+  if (embedded) {
+    return (
+      <div className="w-full max-w-lg">
+        {dropArea}
+        {error && (
+          <p className="mt-3 text-center text-sm text-red-600" role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div
       className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-8"
@@ -54,21 +85,7 @@ export default function DropZone({ onFileSelected }) {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <button
-        type="button"
-        onClick={handleClick}
-        className={`flex max-w-lg flex-col items-center rounded-xl border-2 border-dashed px-12 py-16 text-center transition-colors ${
-          isDragging
-            ? 'border-blue-500 bg-blue-50'
-            : 'border-slate-300 bg-white hover:border-slate-400'
-        }`}
-      >
-        <p className="text-lg font-medium text-slate-800">
-          Drop a PDF file here, or click to browse
-        </p>
-        <p className="mt-2 text-sm text-slate-500">PDF files only</p>
-      </button>
-
+      {dropArea}
       {error && (
         <p className="mt-3 text-sm text-red-600" role="alert">
           {error}

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import DropZone from './components/DropZone.jsx';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import HomeScreen from './components/HomeScreen.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import PanelDivider from './components/PanelDivider.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
@@ -14,6 +14,7 @@ import {
   storeNotesPanelWidth,
 } from './constants/panelLayout.js';
 import { useNotes } from './hooks/useNotes.js';
+import { useRecentFiles } from './hooks/useRecentFiles.js';
 import { useSlides } from './hooks/useSlides.js';
 
 function getFileName(filePath) {
@@ -33,6 +34,7 @@ function App() {
   const layoutRef = useRef(null);
   const notesPanelWidthRef = useRef(getStoredNotesPanelWidth());
   const [notesPanelWidth, setNotesPanelWidth] = useState(() => getStoredNotesPanelWidth());
+  const { recentFiles, addRecentFile, removeRecentFile } = useRecentFiles();
 
   const {
     pageCount,
@@ -61,7 +63,45 @@ function App() {
     updateHighlight,
     saveStatus,
     hydrateNotes,
+    flushSave,
   } = useNotes(filePath);
+
+  const resetViewerState = useCallback(() => {
+    setExportStatus('idle');
+    setExportMessage('');
+    setSearchOpen(false);
+    setActiveTool(CURSOR_TOOL);
+    setSelectedHighlightId(null);
+    setExportModalOpen(false);
+  }, []);
+
+  const handleGoHome = useCallback(async () => {
+    await flushSave();
+    setFilePath(null);
+    resetViewerState();
+  }, [flushSave, resetViewerState]);
+
+  const handleOpenFile = useCallback((path) => {
+    resetViewerState();
+    setToastMessage('');
+    setFilePath(path);
+  }, [resetViewerState]);
+
+  const handleOpenRecentFile = useCallback(
+    async (path) => {
+      const exists = await window.electronAPI.fileExists(path);
+      if (!exists) {
+        setToastMessage(
+          `Could not find "${getFileName(path)}". It may have been moved or deleted.`,
+        );
+        removeRecentFile(path);
+        return;
+      }
+
+      handleOpenFile(path);
+    },
+    [handleOpenFile, removeRecentFile],
+  );
 
   useEffect(() => {
     if (!filePath) {
@@ -112,6 +152,12 @@ function App() {
       cancelled = true;
     };
   }, [filePath, hydrateNotes]);
+
+  useEffect(() => {
+    if (filePath && pageCount > 0 && !loading && !error) {
+      addRecentFile(filePath, pageCount);
+    }
+  }, [filePath, pageCount, loading, error, addRecentFile]);
 
   useEffect(() => {
     if (exportStatus === 'error' && exportMessage) {
@@ -177,13 +223,6 @@ function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedHighlightId, activeTool, filePath, currentIndex, deleteHighlight]);
-
-  const handleTryAnotherFile = () => {
-    setFilePath(null);
-    setExportStatus('idle');
-    setExportMessage('');
-    setToastMessage('');
-  };
 
   const handlePanelDividerDrag = (clientX) => {
     const layout = layoutRef.current;
@@ -265,7 +304,20 @@ function App() {
   };
 
   if (filePath === null) {
-    return <DropZone onFileSelected={setFilePath} />;
+    return (
+      <>
+        <HomeScreen
+          recentFiles={recentFiles}
+          onFileSelected={handleOpenFile}
+          onRecentFileSelect={handleOpenRecentFile}
+        />
+        <Toast
+          message={toastMessage}
+          variant="error"
+          onDismiss={() => setToastMessage('')}
+        />
+      </>
+    );
   }
 
   return (
@@ -289,7 +341,7 @@ function App() {
             zoom={zoom}
             onPrev={goPrev}
             onNext={goNext}
-            onTryAnotherFile={handleTryAnotherFile}
+            onTryAnotherFile={handleGoHome}
             onZoomIn={zoomIn}
             onZoomOut={zoomOut}
             onZoomReset={zoomReset}
@@ -305,6 +357,7 @@ function App() {
             onUpdateHighlightNote={handleUpdateHighlightNote}
             onUpdateHighlight={handleUpdateHighlight}
             onDeleteHighlight={handleDeleteHighlight}
+            onGoHome={handleGoHome}
           />
         </main>
 

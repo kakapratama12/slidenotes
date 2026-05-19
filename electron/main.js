@@ -34,6 +34,15 @@ function registerIpcHandlers() {
     return Uint8Array.from(buffer);
   });
 
+  ipcMain.handle('file-exists', async (_event, filePath) => {
+    try {
+      await fs.access(filePath);
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
   ipcMain.handle('load-notes', async (_event, filePath) => {
     const jsonPath = getNotesJsonPath(filePath);
 
