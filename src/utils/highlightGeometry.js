@@ -107,6 +107,64 @@ export function resizeHighlight(original, handle, pointerNorm) {
   return clampHighlight({ x, y, width: w, height: h });
 }
 
+/**
+ * Resize from drag start using normalized deltas (avoids jump on first move).
+ */
+export function resizeHighlightByDelta(original, handle, deltaX, deltaY) {
+  let { x, y, width: w, height: h } = original;
+
+  switch (handle) {
+    case 'nw':
+      x = original.x + deltaX;
+      y = original.y + deltaY;
+      w = original.width - deltaX;
+      h = original.height - deltaY;
+      break;
+    case 'n':
+      y = original.y + deltaY;
+      h = original.height - deltaY;
+      break;
+    case 'ne':
+      y = original.y + deltaY;
+      w = original.width + deltaX;
+      h = original.height - deltaY;
+      break;
+    case 'e':
+      w = original.width + deltaX;
+      break;
+    case 'se':
+      w = original.width + deltaX;
+      h = original.height + deltaY;
+      break;
+    case 's':
+      h = original.height + deltaY;
+      break;
+    case 'sw':
+      x = original.x + deltaX;
+      w = original.width - deltaX;
+      h = original.height + deltaY;
+      break;
+    case 'w':
+      x = original.x + deltaX;
+      w = original.width - deltaX;
+      break;
+    default:
+      break;
+  }
+
+  if (w < 0) {
+    x += w;
+    w = -w;
+  }
+
+  if (h < 0) {
+    y += h;
+    h = -h;
+  }
+
+  return clampHighlight({ x, y, width: w, height: h });
+}
+
 export function getHandleCenter(handle, pixelX, pixelY, pixelW, pixelH) {
   switch (handle) {
     case 'nw':

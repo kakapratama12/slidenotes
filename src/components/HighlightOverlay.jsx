@@ -8,7 +8,7 @@ import {
   HANDLE_CURSORS,
   HANDLE_SIZE,
   moveHighlight,
-  resizeHighlight,
+  resizeHighlightByDelta,
   RESIZE_HANDLES,
 } from '../utils/highlightGeometry.js';
 import HighlightPopup from './HighlightPopup.jsx';
@@ -31,13 +31,6 @@ function getLocalPoint(event, svgElement) {
   return {
     x: event.clientX - rect.left,
     y: event.clientY - rect.top,
-  };
-}
-
-function toNormalizedPoint(point, canvasWidth, canvasHeight) {
-  return {
-    x: point.x / canvasWidth,
-    y: point.y / canvasHeight,
   };
 }
 
@@ -253,16 +246,19 @@ export default function HighlightOverlay({
     (event) => {
       if (dragState && svgRef.current) {
         const point = getLocalPoint(event, svgRef.current);
-        const pointerNorm = toNormalizedPoint(point, width, height);
+        const deltaX = (point.x - dragState.startPoint.x) / width;
+        const deltaY = (point.y - dragState.startPoint.y) / height;
 
         if (dragState.type === 'move') {
-          const deltaX = (point.x - dragState.startPoint.x) / width;
-          const deltaY = (point.y - dragState.startPoint.y) / height;
           const preview = moveHighlight(dragState.original, deltaX, deltaY);
-
           setDragState((prev) => (prev ? { ...prev, preview } : prev));
         } else {
-          const preview = resizeHighlight(dragState.original, dragState.handle, pointerNorm);
+          const preview = resizeHighlightByDelta(
+            dragState.original,
+            dragState.handle,
+            deltaX,
+            deltaY,
+          );
           setDragState((prev) => (prev ? { ...prev, preview } : prev));
         }
 
