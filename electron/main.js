@@ -2,6 +2,11 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs/promises');
 const path = require('path');
 
+function getNotesJsonPath(filePath) {
+  const parsed = path.parse(filePath);
+  return path.join(parsed.dir, `${parsed.name}.slidenotes.json`);
+}
+
 function registerIpcHandlers() {
   ipcMain.handle('open-file-dialog', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -21,14 +26,25 @@ function registerIpcHandlers() {
     return Uint8Array.from(buffer);
   });
 
-  ipcMain.handle('load-notes', async () => {
-    return null;
+  ipcMain.handle('load-notes', async (_event, filePath) => {
+    const jsonPath = getNotesJsonPath(filePath);
+
+    try {
+      const raw = await fs.readFile(jsonPath, 'utf-8');
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        return null;
+      }
+
+      console.warn('load-notes: failed to read or parse notes file', error);
+      return null;
+    }
   });
 
   ipcMain.handle('save-notes', async (_event, { filePath, notes }) => {
     try {
-      const parsed = path.parse(filePath);
-      const jsonPath = path.join(parsed.dir, `${parsed.name}.slidenotes.json`);
+      const jsonPath = getNotesJsonPath(filePath);
       const payload = {
         version: 1,
         sourceFile: filePath,

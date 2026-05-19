@@ -301,7 +301,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S3-02: Persistent Notes
+### ✅ S3-02: Persistent Notes
 
 Buat branch baru:
 ```
@@ -479,7 +479,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S2-02 Slide rendering
 - [x] S2-03 Thumbnail sidebar
 - [x] S3-01 Notes panel + auto-save
-- [ ] S3-02 Persistent notes
+- [x] S3-02 Persistent notes
 - [ ] S3-03 Export PDF
 - [ ] S4-01 Polish
 - [ ] S4-02 Build

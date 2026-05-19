@@ -39,6 +39,12 @@ export function useNotes(filePath) {
 
   useEffect(() => () => saveDebounced.cancel(), [saveDebounced]);
 
+  useEffect(() => {
+    saveDebounced.cancel();
+    setNotes({});
+    setSaveStatus('saved');
+  }, [filePath, saveDebounced]);
+
   const updateNote = useCallback(
     (slideIndex, text) => {
       const key = String(slideIndex);
@@ -59,9 +65,15 @@ export function useNotes(filePath) {
     [saveDebounced],
   );
 
+  const hydrateNotes = useCallback((slides) => {
+    setNotes(slides ?? {});
+    setSaveStatus('saved');
+  }, []);
+
   return {
     notes,
     updateNote,
     saveStatus,
+    hydrateNotes,
   };
 }

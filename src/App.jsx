@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import DropZone from './components/DropZone.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
@@ -21,7 +21,44 @@ function App() {
     renderThumbnail,
   } = useSlides(filePath);
 
-  const { notes, updateNote, saveStatus } = useNotes(filePath);
+  const { notes, updateNote, saveStatus, hydrateNotes } = useNotes(filePath);
+
+  useEffect(() => {
+    if (!filePath) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    async function loadPersistedNotes() {
+      const data = await window.electronAPI.loadNotes(filePath);
+
+      if (cancelled) {
+        return;
+      }
+
+      if (data?.slides && typeof data.slides === 'object') {
+        const slides = Object.fromEntries(
+          Object.entries(data.slides).map(([key, slide]) => [
+            key,
+            {
+              note: slide?.note ?? '',
+              highlights: slide?.highlights ?? [],
+            },
+          ]),
+        );
+        hydrateNotes(slides);
+      } else {
+        hydrateNotes({});
+      }
+    }
+
+    loadPersistedNotes();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filePath, hydrateNotes]);
 
   if (filePath === null) {
     return <DropZone onFileSelected={setFilePath} />;
