@@ -228,8 +228,13 @@ function App() {
         activeTool === CURSOR_TOOL &&
         filePath !== null
       ) {
-        const activeTag = document.activeElement?.tagName;
-        if (activeTag === 'TEXTAREA' || activeTag === 'INPUT') {
+        const active = document.activeElement;
+        const activeTag = active?.tagName;
+        if (
+          activeTag === 'TEXTAREA' ||
+          activeTag === 'INPUT' ||
+          active?.isContentEditable
+        ) {
           return;
         }
 

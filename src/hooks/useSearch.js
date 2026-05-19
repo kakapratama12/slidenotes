@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { stripHtmlToPlainText } from '../utils/noteContent.js';
 
 const DEBOUNCE_MS = 300;
 const MAX_EXCERPT_LENGTH = 80;
@@ -53,7 +54,7 @@ export function searchNotes(notes, query) {
       return;
     }
 
-    const slideNote = slide?.note ?? '';
+    const slideNote = stripHtmlToPlainText(slide?.note ?? '');
 
     if (slideNote.toLowerCase().includes(trimmedQuery.toLowerCase())) {
       results.push({

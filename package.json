@@ -11,6 +11,10 @@
     "lint": "echo \"lint not configured yet\""
   },
   "dependencies": {
+    "@tiptap/extension-underline": "^3.23.5",
+    "@tiptap/pm": "^3.23.5",
+    "@tiptap/react": "^3.23.5",
+    "@tiptap/starter-kit": "^3.23.5",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.3.1",
