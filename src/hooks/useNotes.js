@@ -128,11 +128,39 @@ export function useNotes(filePath) {
     [saveDebounced],
   );
 
+  const updateHighlightNote = useCallback(
+    (slideIndex, highlightId, note) => {
+      const key = String(slideIndex);
+
+      setNotes((prev) => {
+        const slide = prev[key];
+        if (!slide) {
+          return prev;
+        }
+
+        const next = {
+          ...prev,
+          [key]: {
+            note: slide.note ?? '',
+            highlights: (slide.highlights ?? []).map((item) =>
+              item.id === highlightId ? { ...item, note } : item,
+            ),
+          },
+        };
+
+        saveDebounced(next);
+        return next;
+      });
+    },
+    [saveDebounced],
+  );
+
   return {
     notes,
     updateNote,
     addHighlight,
     deleteHighlight,
+    updateHighlightNote,
     saveStatus,
     hydrateNotes,
   };

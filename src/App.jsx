@@ -40,7 +40,15 @@ function App() {
     captureSlide,
   } = useSlides(filePath);
 
-  const { notes, updateNote, addHighlight, saveStatus, hydrateNotes } = useNotes(filePath);
+  const {
+    notes,
+    updateNote,
+    addHighlight,
+    deleteHighlight,
+    updateHighlightNote,
+    saveStatus,
+    hydrateNotes,
+  } = useNotes(filePath);
 
   useEffect(() => {
     if (!filePath) {
@@ -71,7 +79,10 @@ function App() {
             key,
             {
               note: slide?.note ?? '',
-              highlights: slide?.highlights ?? [],
+              highlights: (slide?.highlights ?? []).map((highlight) => ({
+                ...highlight,
+                note: highlight?.note ?? '',
+              })),
             },
           ]),
         );
@@ -102,6 +113,17 @@ function App() {
 
   const handleAddHighlight = (highlight) => {
     addHighlight(currentIndex, highlight);
+  };
+
+  const handleUpdateHighlightNote = (highlightId, note) => {
+    updateHighlightNote(currentIndex, highlightId, note);
+  };
+
+  const handleDeleteHighlight = (highlightId) => {
+    deleteHighlight(currentIndex, highlightId);
+    if (selectedHighlightId === highlightId) {
+      setSelectedHighlightId(null);
+    }
   };
 
   useEffect(() => {
@@ -193,6 +215,8 @@ function App() {
             selectedHighlightId={selectedHighlightId}
             onSelectHighlight={setSelectedHighlightId}
             onAddHighlight={handleAddHighlight}
+            onUpdateHighlightNote={handleUpdateHighlightNote}
+            onDeleteHighlight={handleDeleteHighlight}
           />
         </main>
 

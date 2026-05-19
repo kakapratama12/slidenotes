@@ -1,7 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { HIGHLIGHT_FILL_OPACITY } from '../constants/highlightColors.js';
+import HighlightPopup from './HighlightPopup.jsx';
 
 const MIN_DRAG_PX = 4;
+const SHOW_DELAY_MS = 200;
+const HIDE_DELAY_MS = 300;
 
 function normalizeRect(x1, y1, x2, y2, width, height) {
   const x = Math.min(x1, x2) / width;
@@ -20,6 +23,10 @@ function getLocalPoint(event, svgElement) {
   };
 }
 
+function hasNoteText(note) {
+  return Boolean(note?.trim());
+}
+
 export default function HighlightOverlay({
   width,
   height,
@@ -28,10 +35,116 @@ export default function HighlightOverlay({
   selectedId,
   onSelect,
   onCreate,
+  onUpdateHighlightNote,
+  onDeleteHighlight,
 }) {
   const svgRef = useRef(null);
+  const rectRefs = useRef({});
+  const showTimerRef = useRef(null);
+  const hideTimerRef = useRef(null);
   const [draft, setDraft] = useState(null);
+  const [activeHighlightId, setActiveHighlightId] = useState(null);
+  const [anchorRect, setAnchorRect] = useState(null);
+  const activeHighlightIdRef = useRef(null);
   const drawMode = Boolean(drawColor);
+
+  useEffect(() => {
+    activeHighlightIdRef.current = activeHighlightId;
+  }, [activeHighlightId]);
+
+  const clearShowTimer = useCallback(() => {
+    if (showTimerRef.current) {
+      clearTimeout(showTimerRef.current);
+      showTimerRef.current = null;
+    }
+  }, []);
+
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  }, []);
+
+  const updateAnchorForHighlight = useCallback((highlightId) => {
+    const element = rectRefs.current[highlightId];
+    if (element) {
+      setAnchorRect(element.getBoundingClientRect());
+    }
+  }, []);
+
+  const openPopupForHighlight = useCallback(
+    (highlightId) => {
+      setActiveHighlightId(highlightId);
+      updateAnchorForHighlight(highlightId);
+    },
+    [updateAnchorForHighlight],
+  );
+
+  const scheduleHidePopup = useCallback(() => {
+    clearHideTimer();
+    hideTimerRef.current = setTimeout(() => {
+      setActiveHighlightId(null);
+      setAnchorRect(null);
+    }, HIDE_DELAY_MS);
+  }, [clearHideTimer]);
+
+  const handleHighlightEnter = useCallback(
+    (highlightId) => {
+      if (drawMode) {
+        return;
+      }
+
+      clearHideTimer();
+      clearShowTimer();
+
+      if (activeHighlightIdRef.current) {
+        openPopupForHighlight(highlightId);
+        return;
+      }
+
+      showTimerRef.current = setTimeout(() => {
+        openPopupForHighlight(highlightId);
+      }, SHOW_DELAY_MS);
+    },
+    [drawMode, clearHideTimer, clearShowTimer, openPopupForHighlight],
+  );
+
+  const handleHighlightLeave = useCallback(() => {
+    clearShowTimer();
+    scheduleHidePopup();
+  }, [clearShowTimer, scheduleHidePopup]);
+
+  const handlePopupEnter = useCallback(() => {
+    clearHideTimer();
+  }, [clearHideTimer]);
+
+  const handlePopupLeave = useCallback(() => {
+    scheduleHidePopup();
+  }, [scheduleHidePopup]);
+
+  useEffect(() => {
+    clearShowTimer();
+    clearHideTimer();
+    setActiveHighlightId(null);
+    setAnchorRect(null);
+  }, [width, height, drawColor, clearShowTimer, clearHideTimer]);
+
+  useEffect(
+    () => () => {
+      clearShowTimer();
+      clearHideTimer();
+    },
+    [clearShowTimer, clearHideTimer],
+  );
+
+  useEffect(() => {
+    if (!activeHighlightId) {
+      return;
+    }
+
+    updateAnchorForHighlight(activeHighlightId);
+  }, [activeHighlightId, highlights, width, height, updateAnchorForHighlight]);
 
   const handlePointerDown = useCallback(
     (event) => {
@@ -89,6 +202,7 @@ export default function HighlightOverlay({
           id: crypto.randomUUID(),
           ...rect,
           color: drawColor,
+          note: '',
         });
       }
 
@@ -101,6 +215,20 @@ export default function HighlightOverlay({
     setDraft(null);
   }, []);
 
+  const activeHighlight = highlights.find((item) => item.id === activeHighlightId);
+
+  const handleDeleteActive = () => {
+    if (!activeHighlightId) {
+      return;
+    }
+
+    clearShowTimer();
+    clearHideTimer();
+    setActiveHighlightId(null);
+    setAnchorRect(null);
+    onDeleteHighlight(activeHighlightId);
+  };
+
   if (width === 0 || height === 0) {
     return null;
   }
@@ -110,61 +238,96 @@ export default function HighlightOverlay({
     : null;
 
   return (
-    <svg
-      ref={svgRef}
-      width={width}
-      height={height}
-      className="absolute left-0 top-0 touch-none"
-      style={{ cursor: drawMode ? 'crosshair' : 'default' }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerCancel}
-    >
-      {highlights.map((highlight) => {
-        const isSelected = highlight.id === selectedId;
-        const pixelX = highlight.x * width;
-        const pixelY = highlight.y * height;
-        const pixelW = highlight.width * width;
-        const pixelH = highlight.height * height;
+    <>
+      <svg
+        ref={svgRef}
+        width={width}
+        height={height}
+        className="absolute left-0 top-0 touch-none"
+        style={{ cursor: drawMode ? 'crosshair' : 'default' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
+        {highlights.map((highlight) => {
+          const isSelected = highlight.id === selectedId;
+          const pixelX = highlight.x * width;
+          const pixelY = highlight.y * height;
+          const pixelW = highlight.width * width;
+          const pixelH = highlight.height * height;
+          const showNoteDot = hasNoteText(highlight.note);
 
-        return (
+          return (
+            <g key={highlight.id}>
+              <rect
+                ref={(element) => {
+                  if (element) {
+                    rectRefs.current[highlight.id] = element;
+                  } else {
+                    delete rectRefs.current[highlight.id];
+                  }
+                }}
+                x={pixelX}
+                y={pixelY}
+                width={pixelW}
+                height={pixelH}
+                fill={highlight.color}
+                fillOpacity={HIGHLIGHT_FILL_OPACITY}
+                stroke={isSelected ? '#1e293b' : highlight.color}
+                strokeWidth={isSelected ? 2 : 1}
+                style={{ pointerEvents: drawMode ? 'none' : 'auto' }}
+                onMouseEnter={() => handleHighlightEnter(highlight.id)}
+                onMouseLeave={handleHighlightLeave}
+                onPointerDown={(event) => {
+                  if (drawMode) {
+                    return;
+                  }
+
+                  event.stopPropagation();
+                  onSelect(highlight.id);
+                }}
+              />
+              {showNoteDot && (
+                <circle
+                  cx={pixelX + pixelW - 6}
+                  cy={pixelY + 6}
+                  r={4}
+                  fill="#ffffff"
+                  stroke={highlight.color}
+                  strokeWidth={1.5}
+                  pointerEvents="none"
+                />
+              )}
+            </g>
+          );
+        })}
+
+        {draftRect && drawColor && (
           <rect
-            key={highlight.id}
-            x={pixelX}
-            y={pixelY}
-            width={pixelW}
-            height={pixelH}
-            fill={highlight.color}
+            x={draftRect.x * width}
+            y={draftRect.y * height}
+            width={draftRect.width * width}
+            height={draftRect.height * height}
+            fill={drawColor}
             fillOpacity={HIGHLIGHT_FILL_OPACITY}
-            stroke={isSelected ? '#1e293b' : highlight.color}
-            strokeWidth={isSelected ? 2 : 1}
-            style={{ pointerEvents: drawMode ? 'none' : 'auto' }}
-            onPointerDown={(event) => {
-              if (drawMode) {
-                return;
-              }
-
-              event.stopPropagation();
-              onSelect(highlight.id);
-            }}
+            stroke={drawColor}
+            strokeWidth={1}
+            pointerEvents="none"
           />
-        );
-      })}
+        )}
+      </svg>
 
-      {draftRect && drawColor && (
-        <rect
-          x={draftRect.x * width}
-          y={draftRect.y * height}
-          width={draftRect.width * width}
-          height={draftRect.height * height}
-          fill={drawColor}
-          fillOpacity={HIGHLIGHT_FILL_OPACITY}
-          stroke={drawColor}
-          strokeWidth={1}
-          pointerEvents="none"
+      {activeHighlight && !drawMode && (
+        <HighlightPopup
+          anchorRect={anchorRect}
+          note={activeHighlight.note ?? ''}
+          onNoteChange={(text) => onUpdateHighlightNote(activeHighlight.id, text)}
+          onDelete={handleDeleteActive}
+          onMouseEnter={handlePopupEnter}
+          onMouseLeave={handlePopupLeave}
         />
       )}
-    </svg>
+    </>
   );
 }
