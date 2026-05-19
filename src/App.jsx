@@ -31,7 +31,7 @@ function App() {
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const slideViewerRef = useRef(null);
   const layoutRef = useRef(null);
-  const panelDragRef = useRef({ startWidth: 35 });
+  const notesPanelWidthRef = useRef(getStoredNotesPanelWidth());
   const [notesPanelWidth, setNotesPanelWidth] = useState(() => getStoredNotesPanelWidth());
 
   const {
@@ -167,25 +167,28 @@ function App() {
     setToastMessage('');
   };
 
-  const handlePanelDividerDragStart = () => {
-    panelDragRef.current = {
-      startWidth: notesPanelWidth,
-    };
-  };
-
-  const handlePanelDividerDrag = (deltaX) => {
+  const handlePanelDividerDrag = (clientX) => {
     const layout = layoutRef.current;
     if (!layout) {
       return;
     }
 
-    const deltaPercent = (deltaX / layout.offsetWidth) * 100;
-    const nextWidth = clampNotesPanelWidth(panelDragRef.current.startWidth + deltaPercent);
+    const rect = layout.getBoundingClientRect();
+    const containerWidth = rect.width;
+    if (containerWidth <= 0) {
+      return;
+    }
+
+    const dividerX = clientX - rect.left;
+    const nextWidth = clampNotesPanelWidth(
+      ((containerWidth - dividerX) / containerWidth) * 100,
+    );
+    notesPanelWidthRef.current = nextWidth;
     setNotesPanelWidth(nextWidth);
   };
 
   const handlePanelDividerDragEnd = () => {
-    storeNotesPanelWidth(notesPanelWidth);
+    storeNotesPanelWidth(notesPanelWidthRef.current);
   };
 
   const handleOpenExportModal = () => {
@@ -258,7 +261,7 @@ function App() {
           renderThumbnail={renderThumbnail}
         />
 
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col p-4">
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-4">
           <SlideViewer
             ref={slideViewerRef}
             pageCount={pageCount}
@@ -287,11 +290,7 @@ function App() {
           />
         </main>
 
-        <PanelDivider
-          onDragStart={handlePanelDividerDragStart}
-          onDrag={handlePanelDividerDrag}
-          onDragEnd={handlePanelDividerDragEnd}
-        />
+        <PanelDivider onDrag={handlePanelDividerDrag} onDragEnd={handlePanelDividerDragEnd} />
 
         <NotesPanel
           width={notesPanelWidth}

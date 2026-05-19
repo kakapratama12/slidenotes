@@ -1,50 +1,69 @@
 import { useRef, useState } from 'react';
 
-export default function PanelDivider({ onDragStart, onDrag, onDragEnd }) {
+export default function PanelDivider({ onDrag, onDragEnd }) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const sessionRef = useRef(null);
+  const dividerRef = useRef(null);
+  const rafRef = useRef(null);
+  const pendingClientXRef = useRef(null);
 
   const handlePointerDown = (event) => {
     event.preventDefault();
+    const divider = dividerRef.current;
+    if (!divider) {
+      return;
+    }
+
+    divider.setPointerCapture(event.pointerId);
     setIsDragging(true);
+    pendingClientXRef.current = event.clientX;
+    onDrag(event.clientX);
 
-    onDragStart(event.clientX);
-
-    sessionRef.current = {
-      startX: event.clientX,
+    const flushDrag = () => {
+      rafRef.current = null;
+      if (pendingClientXRef.current !== null) {
+        onDrag(pendingClientXRef.current);
+      }
     };
 
     const handlePointerMove = (moveEvent) => {
-      if (!sessionRef.current) {
-        return;
+      pendingClientXRef.current = moveEvent.clientX;
+      if (rafRef.current === null) {
+        rafRef.current = requestAnimationFrame(flushDrag);
+      }
+    };
+
+    const handlePointerUp = (upEvent) => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
 
-      onDrag(moveEvent.clientX - sessionRef.current.startX);
-    };
-
-    const handlePointerUp = () => {
-      sessionRef.current = null;
-      setIsDragging(false);
+      pendingClientXRef.current = upEvent.clientX;
+      onDrag(upEvent.clientX);
       onDragEnd();
-      document.removeEventListener('pointermove', handlePointerMove);
-      document.removeEventListener('pointerup', handlePointerUp);
-      document.removeEventListener('pointercancel', handlePointerUp);
+
+      divider.releasePointerCapture(upEvent.pointerId);
+      setIsDragging(false);
+      divider.removeEventListener('pointermove', handlePointerMove);
+      divider.removeEventListener('pointerup', handlePointerUp);
+      divider.removeEventListener('pointercancel', handlePointerUp);
     };
 
-    document.addEventListener('pointermove', handlePointerMove);
-    document.addEventListener('pointerup', handlePointerUp);
-    document.addEventListener('pointercancel', handlePointerUp);
+    divider.addEventListener('pointermove', handlePointerMove);
+    divider.addEventListener('pointerup', handlePointerUp);
+    divider.addEventListener('pointercancel', handlePointerUp);
   };
 
   const isActive = isHovered || isDragging;
 
   return (
     <div
+      ref={dividerRef}
       role="separator"
       aria-orientation="vertical"
       aria-label="Resize notes panel"
-      className={`relative w-1 shrink-0 cursor-col-resize select-none ${
+      className={`relative w-1 shrink-0 cursor-col-resize touch-none select-none ${
         isActive ? 'bg-blue-400' : 'bg-slate-200 hover:bg-slate-300'
       }`}
       onPointerDown={handlePointerDown}

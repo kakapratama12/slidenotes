@@ -116,11 +116,26 @@ export function useSlides(filePath) {
     const page = await pdf.getPage(index + 1);
     const context = canvas.getContext('2d');
     const scrollContainer = canvas.closest('[data-slide-scroll]');
-    const containerWidth = scrollContainer?.clientWidth
-      ? scrollContainer.clientWidth - 32
-      : 800;
+
+    let availWidth = 800;
+    let availHeight = 600;
+
+    if (scrollContainer) {
+      const styles = getComputedStyle(scrollContainer);
+      const paddingX =
+        Number.parseFloat(styles.paddingLeft) + Number.parseFloat(styles.paddingRight);
+      const paddingY =
+        Number.parseFloat(styles.paddingTop) + Number.parseFloat(styles.paddingBottom);
+
+      availWidth = Math.max(1, scrollContainer.clientWidth - paddingX);
+      availHeight = Math.max(1, scrollContainer.clientHeight - paddingY);
+    }
+
     const baseViewport = page.getViewport({ scale: 1 });
-    const scale = containerWidth / baseViewport.width;
+    const scale = Math.min(
+      availWidth / baseViewport.width,
+      availHeight / baseViewport.height,
+    );
     const viewport = page.getViewport({ scale });
 
     canvas.width = viewport.width;

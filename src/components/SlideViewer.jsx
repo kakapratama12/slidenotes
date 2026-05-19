@@ -221,11 +221,18 @@ const SlideViewer = forwardRef(function SlideViewer(
   ]);
 
   useEffect(() => {
-    const handleResize = () => setResizeTick((tick) => tick + 1);
+    const container = scrollRef.current;
+    if (!container) {
+      return undefined;
+    }
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
+    const observer = new ResizeObserver(() => {
+      setResizeTick((tick) => tick + 1);
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [loading, pageCount, error]);
 
   useEffect(() => {
     const container = scrollRef.current;
@@ -314,19 +321,20 @@ const SlideViewer = forwardRef(function SlideViewer(
       <div
         ref={scrollRef}
         data-slide-scroll
-        className={`relative min-h-0 flex-1 overflow-hidden rounded-lg bg-slate-50 p-4 ${
+        className={`relative flex h-full min-h-0 w-full flex-1 overflow-hidden rounded-lg bg-slate-50 p-4 ${
           canPan && !isPanning ? 'cursor-grab' : ''
         } ${canPan && isPanning ? 'cursor-grabbing' : ''}`}
         onPointerDown={handleScrollPointerDown}
       >
-        <div
-          className={`relative inline-block origin-top-left shadow-sm ${
-            drawColor ? 'cursor-crosshair' : ''
-          }`}
-          style={{
-            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          }}
-        >
+        <div className="flex h-full w-full items-center justify-center">
+          <div
+            className={`relative inline-block origin-center shadow-sm ${
+              drawColor ? 'cursor-crosshair' : ''
+            }`}
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            }}
+          >
           <canvas ref={canvasRef} className="block" />
           <HighlightOverlay
             width={canvasSize.width}
@@ -343,6 +351,7 @@ const SlideViewer = forwardRef(function SlideViewer(
             onUpdateHighlight={onUpdateHighlight}
             onDeleteHighlight={onDeleteHighlight}
           />
+          </div>
         </div>
         {rendering && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-white/60 text-sm text-slate-500">
