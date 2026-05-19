@@ -11,6 +11,8 @@ import {
   resizeHighlightByDelta,
   RESIZE_HANDLES,
 } from '../utils/highlightGeometry.js';
+import { getHighlightNumber } from '../utils/highlightNumbering.js';
+import HighlightNumberBadge from './HighlightNumberBadge.jsx';
 import HighlightPopup from './HighlightPopup.jsx';
 
 const MIN_DRAG_PX = 4;
@@ -47,6 +49,7 @@ export default function HighlightOverlay({
   isPanning,
   onPanPointerDown,
   selectedId,
+  flashHighlightId,
   onSelect,
   onCreate,
   onUpdateHighlightNote,
@@ -373,6 +376,8 @@ export default function HighlightOverlay({
         {highlights.map((highlight) => {
           const geometry = getDisplayGeometry(highlight);
           const isSelected = highlight.id === selectedId;
+          const isFlashing = highlight.id === flashHighlightId;
+          const highlightNumber = getHighlightNumber(highlights, highlight.id);
           const pixelX = geometry.x * width;
           const pixelY = geometry.y * height;
           const pixelW = geometry.width * width;
@@ -397,8 +402,9 @@ export default function HighlightOverlay({
                 height={pixelH}
                 fill={highlight.color}
                 fillOpacity={HIGHLIGHT_FILL_OPACITY}
-                stroke={getHighlightStrokeColor(highlight.color, isSelected)}
-                strokeWidth={isSelected ? 3 : 1}
+                stroke={getHighlightStrokeColor(highlight.color, isSelected || isFlashing)}
+                strokeWidth={isSelected || isFlashing ? 3 : 1}
+                className={isFlashing ? 'highlight-flash' : undefined}
                 style={{
                   pointerEvents: drawMode ? 'none' : 'auto',
                   cursor: drawMode ? 'default' : 'move',
@@ -407,6 +413,14 @@ export default function HighlightOverlay({
                 onMouseLeave={handleHighlightLeave}
                 onPointerDown={(event) => startDrag(event, highlight, null)}
               />
+              {highlightNumber > 0 && (
+                <HighlightNumberBadge
+                  number={highlightNumber}
+                  x={pixelX + 4}
+                  y={pixelY + 4}
+                  color={highlight.color}
+                />
+              )}
               {showNoteDot && (
                 <circle
                   cx={pixelX + pixelW - 6}
@@ -465,6 +479,7 @@ export default function HighlightOverlay({
       {activeHighlight && !drawMode && !dragState && (
         <HighlightPopup
           anchorRect={anchorRect}
+          highlightNumber={getHighlightNumber(highlights, activeHighlight.id)}
           note={activeHighlight.note ?? ''}
           onNoteChange={(text) => onUpdateHighlightNote(activeHighlight.id, text)}
           onDelete={handleDeleteActive}

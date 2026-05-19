@@ -32,6 +32,7 @@ function getPopupPosition(anchorRect) {
 
 export default function HighlightPopup({
   anchorRect,
+  highlightNumber,
   note,
   onNoteChange,
   onDelete,
@@ -55,7 +56,10 @@ export default function HighlightPopup({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
     >
-      <div className="mb-1 flex justify-end">
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <span className="text-xs font-semibold text-slate-600">
+          Highlight {highlightNumber > 0 ? `[${highlightNumber}]` : ''}
+        </span>
         <button
           type="button"
           onClick={onDelete}

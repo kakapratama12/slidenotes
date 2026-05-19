@@ -27,6 +27,7 @@ const SlideViewer = forwardRef(function SlideViewer(
     viewLayout,
     onToggleLayout,
     selectedHighlightId,
+    flashHighlightId,
     onSelectHighlight,
     onAddHighlight,
     onUpdateHighlightNote,
@@ -185,12 +186,46 @@ const SlideViewer = forwardRef(function SlideViewer(
     [canPan, handlePanPointerDown],
   );
 
+  const focusHighlight = useCallback(
+    (highlightId) => {
+      const highlight = highlights.find((item) => item.id === highlightId);
+      if (!highlight) {
+        return;
+      }
+
+      onSelectHighlight(highlightId);
+
+      if (zoom <= 1 || canvasSize.width === 0 || canvasSize.height === 0) {
+        return;
+      }
+
+      const bounds = getPanBounds();
+      if (!bounds) {
+        return;
+      }
+
+      const offsetX = (highlight.x + highlight.width / 2 - 0.5) * canvasSize.width * zoom;
+      const offsetY = (highlight.y + highlight.height / 2 - 0.5) * canvasSize.height * zoom;
+      applyPan(-offsetX, -offsetY);
+    },
+    [
+      highlights,
+      zoom,
+      canvasSize.width,
+      canvasSize.height,
+      getPanBounds,
+      applyPan,
+      onSelectHighlight,
+    ],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
-      captureSlide: (index, highlights) => captureSlide(index, highlights),
+      captureSlide: (index, slideHighlights) => captureSlide(index, slideHighlights),
+      focusHighlight,
     }),
-    [captureSlide],
+    [captureSlide, focusHighlight],
   );
 
   useEffect(() => {
@@ -395,6 +430,7 @@ const SlideViewer = forwardRef(function SlideViewer(
             isPanning={isPanning}
             onPanPointerDown={handlePanPointerDown}
             selectedId={selectedHighlightId}
+            flashHighlightId={flashHighlightId}
             onSelect={onSelectHighlight}
             onCreate={onAddHighlight}
             onUpdateHighlightNote={onUpdateHighlightNote}

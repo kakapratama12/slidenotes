@@ -1,7 +1,7 @@
 import Underline from '@tiptap/extension-underline';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { useEffect } from 'react';
+import { forwardRef, useEffect, useImperativeHandle } from 'react';
 import { normalizeNoteForEditor, noteHtmlForStorage } from '../utils/noteContent.js';
 
 function FormatButton({ active, onClick, label, children, className = '' }) {
@@ -71,7 +71,7 @@ function FormatToolbar({ editor }) {
   );
 }
 
-export default function RichTextEditor({ content, slideKey, onChange }) {
+const RichTextEditor = forwardRef(function RichTextEditor({ content, slideKey, onChange }, ref) {
   const editor = useEditor({
     extensions: [StarterKit, Underline],
     content: normalizeNoteForEditor(content),
@@ -93,10 +93,34 @@ export default function RichTextEditor({ content, slideKey, onChange }) {
     editor.commands.setContent(normalizeNoteForEditor(content), { emitUpdate: false });
   }, [slideKey, editor]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      insertHighlightMarker(marker) {
+        if (!editor) {
+          return;
+        }
+
+        const isEmpty = !noteHtmlForStorage(editor.getHTML());
+
+        if (isEmpty) {
+          editor.chain().focus().insertContent(`<p>${marker}</p>`).run();
+        } else {
+          editor.chain().focus('end').insertContent(`<p>${marker}</p>`).run();
+        }
+
+        onChange(noteHtmlForStorage(editor.getHTML()));
+      },
+    }),
+    [editor, onChange],
+  );
+
   return (
     <div className="notes-editor mt-3 flex min-h-0 flex-1 flex-col rounded-lg border border-slate-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500">
       <FormatToolbar editor={editor} />
       <EditorContent editor={editor} className="notes-editor__surface min-h-0 flex-1 overflow-y-auto" />
     </div>
   );
-}
+});
+
+export default RichTextEditor;

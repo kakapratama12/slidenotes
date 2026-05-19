@@ -27,6 +27,7 @@ import {
   storeZoomHighlightWidth,
 } from './constants/zoomLayout.js';
 import { useNotes } from './hooks/useNotes.js';
+import { getHighlightMarker, getHighlightNumber } from './utils/highlightNumbering.js';
 import { useRecentFiles } from './hooks/useRecentFiles.js';
 import { useSlides } from './hooks/useSlides.js';
 
@@ -44,6 +45,11 @@ function App() {
   const [selectedHighlightId, setSelectedHighlightId] = useState(null);
   const [exportModalOpen, setExportModalOpen] = useState(false);
   const slideViewerRef = useRef(null);
+  const notesPanelRef = useRef(null);
+  const highlightListRef = useRef(null);
+  const [flashHighlightId, setFlashHighlightId] = useState(null);
+  const [listFocusHighlightId, setListFocusHighlightId] = useState(null);
+  const flashTimerRef = useRef(null);
   const layoutRef = useRef(null);
   const notesPanelWidthRef = useRef(getStoredNotesPanelWidth());
   const [notesPanelWidth, setNotesPanelWidth] = useState(() => getStoredNotesPanelWidth());
@@ -186,12 +192,51 @@ function App() {
 
   useEffect(() => {
     setSelectedHighlightId(null);
+    setListFocusHighlightId(null);
+    setFlashHighlightId(null);
   }, [currentIndex]);
+
+  useEffect(() => () => clearTimeout(flashTimerRef.current), []);
 
   const slideHighlights = notes[String(currentIndex)]?.highlights ?? [];
 
+  const triggerHighlightFlash = useCallback((highlightId) => {
+    clearTimeout(flashTimerRef.current);
+    setFlashHighlightId(highlightId);
+    flashTimerRef.current = setTimeout(() => setFlashHighlightId(null), 900);
+  }, []);
+
+  const handleSelectHighlight = useCallback(
+    (highlightId, { flash = false, focusList = true } = {}) => {
+      setSelectedHighlightId(highlightId);
+
+      if (focusList) {
+        setListFocusHighlightId(highlightId);
+        highlightListRef.current?.scrollToHighlight(highlightId);
+      }
+
+      if (flash) {
+        triggerHighlightFlash(highlightId);
+      }
+    },
+    [triggerHighlightFlash],
+  );
+
+  const handleHighlightListSelect = useCallback(
+    (highlightId) => {
+      handleSelectHighlight(highlightId, { flash: true, focusList: false });
+      slideViewerRef.current?.focusHighlight(highlightId);
+    },
+    [handleSelectHighlight],
+  );
+
   const handleAddHighlight = (highlight) => {
     addHighlight(currentIndex, highlight);
+
+    const nextHighlights = [...slideHighlights, highlight];
+    const number = getHighlightNumber(nextHighlights, highlight.id);
+    notesPanelRef.current?.insertHighlightMarker(getHighlightMarker(number));
+    handleSelectHighlight(highlight.id, { flash: false, focusList: false });
   };
 
   const handleUpdateHighlightNote = (highlightId, note) => {
@@ -397,7 +442,10 @@ function App() {
       activeTool={activeTool}
       onActiveToolChange={setActiveTool}
       selectedHighlightId={selectedHighlightId}
-      onSelectHighlight={setSelectedHighlightId}
+      flashHighlightId={flashHighlightId}
+      onSelectHighlight={(highlightId) =>
+        handleSelectHighlight(highlightId, { flash: false, focusList: true })
+      }
       onAddHighlight={handleAddHighlight}
       onUpdateHighlightNote={handleUpdateHighlightNote}
       onUpdateHighlight={handleUpdateHighlight}
@@ -437,7 +485,12 @@ function App() {
 
             <PanelDivider onDrag={handlePanelDividerDrag} onDragEnd={handlePanelDividerDragEnd} />
 
-            <NotesPanel width={notesPanelWidth} variant="sidebar" {...notesPanelProps} />
+            <NotesPanel
+              ref={notesPanelRef}
+              width={notesPanelWidth}
+              variant="sidebar"
+              {...notesPanelProps}
+            />
           </>
         ) : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -447,7 +500,7 @@ function App() {
               ref={zoomBottomRef}
               className="flex h-[40%] min-h-0 overflow-hidden border-t border-slate-200"
             >
-              <NotesPanel variant="bottom" {...notesPanelProps} />
+              <NotesPanel ref={notesPanelRef} variant="bottom" {...notesPanelProps} />
 
               <PanelDivider
                 onDrag={handleZoomBottomDividerDrag}
@@ -458,6 +511,11 @@ function App() {
                 width={zoomHighlightWidth}
                 highlights={slideHighlights}
                 currentIndex={currentIndex}
+                selectedHighlightId={selectedHighlightId}
+                listFocusHighlightId={listFocusHighlightId}
+                onSelectHighlight={handleHighlightListSelect}
+                onUpdateHighlightNote={handleUpdateHighlightNote}
+                listRef={highlightListRef}
               />
             </div>
           </div>

@@ -13,6 +13,10 @@ export function getHighlightStrokeColor(hex, isSelected) {
     return hex;
   }
 
+  return darkenHighlightColor(hex);
+}
+
+export function darkenHighlightColor(hex) {
   const r = Math.round(Number.parseInt(hex.slice(1, 3), 16) * 0.55);
   const g = Math.round(Number.parseInt(hex.slice(3, 5), 16) * 0.55);
   const b = Math.round(Number.parseInt(hex.slice(5, 7), 16) * 0.55);

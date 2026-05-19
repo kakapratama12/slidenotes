@@ -1,3 +1,4 @@
+import { forwardRef, useImperativeHandle, useRef } from 'react';
 import RichTextEditor from './RichTextEditor.jsx';
 
 function SaveStatus({ status }) {
@@ -28,21 +29,31 @@ function ExportStatus({ status, message }) {
   return <p className="text-sm text-green-600">{message}</p>;
 }
 
-export default function NotesPanel({
-  width,
-  variant = 'sidebar',
-  currentIndex,
-  notes,
-  saveStatus,
-  onNoteChange,
-  onExport,
-  exportStatus,
-  exportMessage,
-}) {
+const NotesPanel = forwardRef(function NotesPanel(
+  {
+    width,
+    variant = 'sidebar',
+    currentIndex,
+    notes,
+    saveStatus,
+    onNoteChange,
+    onExport,
+    exportStatus,
+    exportMessage,
+  },
+  ref,
+) {
+  const editorRef = useRef(null);
   const slideKey = String(currentIndex);
   const noteValue = notes[slideKey]?.note ?? '';
   const isExporting = exportStatus === 'exporting';
   const isBottom = variant === 'bottom';
+
+  useImperativeHandle(ref, () => ({
+    insertHighlightMarker(marker) {
+      editorRef.current?.insertHighlightMarker(marker);
+    },
+  }));
 
   return (
     <aside
@@ -68,6 +79,7 @@ export default function NotesPanel({
       <ExportStatus status={exportStatus} message={exportMessage} />
 
       <RichTextEditor
+        ref={editorRef}
         content={noteValue}
         slideKey={slideKey}
         onChange={(html) => onNoteChange(currentIndex, html)}
@@ -78,4 +90,6 @@ export default function NotesPanel({
       </div>
     </aside>
   );
-}
+});
+
+export default NotesPanel;
