@@ -45,6 +45,17 @@ Sebelum merge dan lapor ke PM, pastikan semua checklist ini terpenuhi:
 - [ ] Laporan ke PM mencakup: apa yang dibuat, hasil verify, ADR baru (jika ada)
 - [ ] Sebutkan task berikutnya yang siap dikerjakan
 
+**Akhir Sprint (hanya saat semua task sprint selesai)**
+- [ ] Merge `develop` → `main` dan push
+- [ ] Update `CHANGELOG.md` — tambahkan versi baru dengan semua perubahan sprint ini
+- [ ] Update versi di `package.json` (MAJOR.MINOR.PATCH)
+- [ ] Buat GitHub Release:
+  - Tag: `v1.x.0` sesuai versi
+  - Title: `SlideNotes v1.x.0`
+  - Body: copy dari CHANGELOG.md versi ini
+  - Upload: `release/SlideNotes-x.x.x-arm64.dmg` dan `release/SlideNotes-x.x.x.dmg`
+- [ ] Commit: `"chore: bump version to 1.x.0 and update CHANGELOG"`
+
 ---
 
 ## Sprint 1 — Foundation
@@ -804,7 +815,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-## Checklist v1.1
+## Checklist v1.2
 
 - [x] S5-01 Zoom on slide
 - [x] S5-02 Search notes
