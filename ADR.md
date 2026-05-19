@@ -55,5 +55,14 @@ Baca sebelum membuat keputusan arsitektur baru.
 
 ---
 
+### ADR-04: Offscreen canvas untuk export slide capture
+- **Status:** accepted
+- **Task:** S3-03
+- **Konteks:** Export PDF perlu gambar setiap slide sebagai base64 PNG. Menggunakan canvas yang terlihat di `SlideViewer` akan menyebabkan flicker karena harus render ulang setiap halaman saat loop export.
+- **Keputusan:** `captureSlide(index)` di `useSlides.js` merender ke offscreen `<canvas>` (lebar target ~900px) dan mengembalikan `toDataURL('image/png')`. Method diekspos ke `SlideViewer` via `forwardRef` + `useImperativeHandle` sesuai task spec.
+- **Konsekuensi:** Kualitas export konsisten terlepas ukuran window. Loop export tidak mengganggu slide yang sedang ditampilkan user.
+
+---
+
 *Tambahkan ADR baru setiap kali ada keputusan teknis yang tidak ada di spec awal.*
 *Format: ADR-XX dengan nomor urut berikutnya.*
