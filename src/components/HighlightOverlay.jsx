@@ -472,27 +472,6 @@ export default function HighlightOverlay({
           );
         })}
 
-        <g className="pointer-events-none" aria-hidden={highlights.length === 0}>
-          {highlights.map((highlight) => {
-            const geometry = getDisplayGeometry(highlight);
-            const highlightNumber = getHighlightNumber(highlights, highlight);
-
-            if (!highlightNumber) {
-              return null;
-            }
-
-            return (
-              <HighlightNumberBadge
-                key={`badge-${highlight.id}`}
-                number={highlightNumber}
-                x={geometry.x * width + 4}
-                y={geometry.y * height + 4}
-                color={highlight.color}
-              />
-            );
-          })}
-        </g>
-
         {draftRect && drawColor && (
           <rect
             x={draftRect.x * width}
@@ -506,6 +485,32 @@ export default function HighlightOverlay({
             pointerEvents="none"
           />
         )}
+      </svg>
+
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="pointer-events-none absolute left-0 top-0 z-20"
+        aria-hidden={highlights.length === 0}
+      >
+        {highlights.map((highlight) => {
+          const geometry = getDisplayGeometry(highlight);
+          const highlightNumber = getHighlightNumber(highlights, highlight);
+
+          if (!highlightNumber) {
+            return null;
+          }
+
+          return (
+            <HighlightNumberBadge
+              key={`badge-${highlight.id}`}
+              number={highlightNumber}
+              x={geometry.x * width + 4}
+              y={geometry.y * height + 4}
+            />
+          );
+        })}
       </svg>
 
       {activeHighlight && !drawMode && !dragState && (

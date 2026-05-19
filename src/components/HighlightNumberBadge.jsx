@@ -1,9 +1,12 @@
-import { darkenHighlightColor } from '../constants/highlightColors.js';
+const BADGE_PADDING = 2;
+const BADGE_FONT_SIZE = 12;
+const BADGE_CHAR_WIDTH = 7;
 
-export default function HighlightNumberBadge({ number, x, y, color }) {
+export default function HighlightNumberBadge({ number, x, y }) {
   const label = String(number);
-  const badgeWidth = 10 + label.length * 7;
-  const badgeHeight = 18;
+  const textWidth = label.length * BADGE_CHAR_WIDTH;
+  const badgeWidth = textWidth + BADGE_PADDING * 2;
+  const badgeHeight = BADGE_FONT_SIZE + BADGE_PADDING * 2;
 
   return (
     <g>
@@ -13,7 +16,7 @@ export default function HighlightNumberBadge({ number, x, y, color }) {
         width={badgeWidth}
         height={badgeHeight}
         rx={3}
-        fill={darkenHighlightColor(color)}
+        fill="rgba(0, 0, 0, 0.75)"
       />
       <text
         x={x + badgeWidth / 2}
@@ -21,7 +24,7 @@ export default function HighlightNumberBadge({ number, x, y, color }) {
         textAnchor="middle"
         dominantBaseline="middle"
         fill="#ffffff"
-        fontSize={11}
+        fontSize={BADGE_FONT_SIZE}
         fontWeight="bold"
         fontFamily="system-ui, -apple-system, sans-serif"
         stroke="none"

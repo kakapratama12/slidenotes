@@ -1,8 +1,28 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   getHighlightNumber,
   sortHighlightsByPosition,
 } from '../utils/highlightNumbering.js';
+
+const SAVE_DEBOUNCE_MS = 800;
+
+function debounce(fn, delayMs) {
+  let timeoutId;
+
+  const debounced = (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), delayMs);
+  };
+
+  debounced.flush = (...args) => {
+    clearTimeout(timeoutId);
+    fn(...args);
+  };
+
+  debounced.cancel = () => clearTimeout(timeoutId);
+
+  return debounced;
+}
 
 const HighlightNotesList = forwardRef(function HighlightNotesList(
   {
@@ -15,7 +35,26 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
   ref,
 ) {
   const itemRefs = useRef({});
+  const textareaRefs = useRef({});
+  const [editingId, setEditingId] = useState(null);
+  const [draftNotes, setDraftNotes] = useState({});
+
   const sortedHighlights = sortHighlightsByPosition(highlights);
+
+  const saveNoteDebounced = useMemo(
+    () => debounce((highlightId, note) => onUpdateHighlightNote(highlightId, note), SAVE_DEBOUNCE_MS),
+    [onUpdateHighlightNote],
+  );
+
+  useEffect(() => () => saveNoteDebounced.cancel(), [saveNoteDebounced]);
+
+  const highlightIdsKey = highlights.map((item) => item.id).join(',');
+
+  useEffect(() => {
+    setEditingId(null);
+    setDraftNotes({});
+    saveNoteDebounced.cancel();
+  }, [highlightIdsKey, saveNoteDebounced]);
 
   useImperativeHandle(ref, () => ({
     scrollToHighlight(highlightId) {
@@ -35,6 +74,39 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
     });
   }, [listFocusHighlightId]);
 
+  const startEditing = (highlight) => {
+    onSelectHighlight(highlight.id);
+    setEditingId(highlight.id);
+    setDraftNotes((prev) => ({
+      ...prev,
+      [highlight.id]: highlight.note ?? '',
+    }));
+  };
+
+  const commitNote = (highlightId, note) => {
+    saveNoteDebounced.cancel();
+    onUpdateHighlightNote(highlightId, note);
+    setEditingId((current) => (current === highlightId ? null : current));
+    setDraftNotes((prev) => {
+      const next = { ...prev };
+      delete next[highlightId];
+      return next;
+    });
+  };
+
+  const handleNoteBlur = (highlightId) => {
+    const note = draftNotes[highlightId] ?? '';
+    commitNote(highlightId, note);
+  };
+
+  useEffect(() => {
+    if (!editingId) {
+      return;
+    }
+
+    textareaRefs.current[editingId]?.focus();
+  }, [editingId]);
+
   if (sortedHighlights.length === 0) {
     return <p className="mt-6 text-sm text-slate-500">No highlights on this slide</p>;
   }
@@ -42,13 +114,14 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
   return (
     <ul className="mt-4 min-h-0 flex-1 space-y-2 overflow-y-auto">
       {sortedHighlights.map((highlight) => {
-        const number = getHighlightNumber(highlights, highlight.id);
+        const number = getHighlightNumber(highlights, highlight.id ?? highlight);
         const isSelected = highlight.id === selectedHighlightId;
+        const isEditing = editingId === highlight.id;
+        const displayNote = highlight.note?.trim() ?? '';
 
         return (
           <li key={highlight.id}>
-            <button
-              type="button"
+            <div
               ref={(element) => {
                 if (element) {
                   itemRefs.current[highlight.id] = element;
@@ -56,8 +129,16 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                   delete itemRefs.current[highlight.id];
                 }
               }}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectHighlight(highlight.id)}
-              className={`flex w-full gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSelectHighlight(highlight.id);
+                }
+              }}
+              className={`flex w-full cursor-pointer gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
                 isSelected
                   ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
                   : 'border-slate-200 bg-white hover:border-slate-300'
@@ -68,17 +149,45 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                 style={{ backgroundColor: highlight.color }}
                 aria-hidden
               />
-              <span className="shrink-0 font-semibold text-slate-700">[{number}]</span>
-              <textarea
-                value={highlight.note ?? ''}
-                onChange={(event) => onUpdateHighlightNote(highlight.id, event.target.value)}
-                onClick={(event) => event.stopPropagation()}
-                onFocus={() => onSelectHighlight(highlight.id)}
-                placeholder="Add a note..."
-                rows={2}
-                className="min-w-0 flex-1 resize-none rounded border border-transparent bg-transparent text-slate-700 outline-none focus:border-slate-200 focus:bg-white focus:ring-1 focus:ring-blue-500"
-              />
-            </button>
+              <span className="mt-0.5 shrink-0 font-semibold text-slate-700">[{number}]</span>
+
+              {isEditing ? (
+                <textarea
+                  ref={(element) => {
+                    if (element) {
+                      textareaRefs.current[highlight.id] = element;
+                    } else {
+                      delete textareaRefs.current[highlight.id];
+                    }
+                  }}
+                  value={draftNotes[highlight.id] ?? ''}
+                  onChange={(event) => {
+                    const nextNote = event.target.value;
+                    setDraftNotes((prev) => ({ ...prev, [highlight.id]: nextNote }));
+                    saveNoteDebounced(highlight.id, nextNote);
+                  }}
+                  onBlur={() => handleNoteBlur(highlight.id)}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  placeholder="Add a note..."
+                  rows={2}
+                  className="min-w-0 flex-1 resize-none rounded border border-slate-200 bg-white p-1.5 text-sm text-slate-700 outline-none ring-1 ring-blue-500"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    startEditing(highlight);
+                  }}
+                  className={`min-w-0 flex-1 rounded p-1.5 text-left text-sm outline-none hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-blue-500 ${
+                    displayNote ? 'text-slate-700' : 'text-slate-400'
+                  }`}
+                >
+                  {displayNote || 'Add a note...'}
+                </button>
+              )}
+            </div>
           </li>
         );
       })}
