@@ -6,6 +6,25 @@ Format: [Semantic Versioning](https://semver.org) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.4.0] — 2026-05 — Bug Fixes & Home Screen
+
+### Added
+- **Home screen** — landing view with drop zone when no PDF is open
+- **Recent files** — up to 10 recently opened PDFs in localStorage, sorted by last opened
+- **Back to home** — `← Home` button in toolbar closes PDF and returns to home screen
+- **Delete highlight via keyboard** — `Delete` or `Backspace` removes selected highlight (cursor tool only)
+
+### Fixed
+- **Slide fit on panel resize** — slide re-renders via `ResizeObserver` and scale-to-fit (width and height) when center panel changes size
+- **Smooth panel divider drag** — pointer capture, `requestAnimationFrame` throttling, width calculated from container position
+
+### Changed
+- Notes are flushed to disk before navigating back to home (no confirmation dialog)
+- Missing recent files show an error toast and are removed from the list
+- `file-exists` IPC handler validates recent file paths before opening
+
+---
+
 ## [1.3.1] — 2026-05 — Hotfix
 
 ### Fixed

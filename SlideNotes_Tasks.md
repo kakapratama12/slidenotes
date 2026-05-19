@@ -817,12 +817,12 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Checklist v1.2.0
 
-- [x] S5-01 Zoom on slide
-- [x] S5-02 Search notes
-- [x] S6-01 Draw highlight box
-- [x] S6-02 Highlight note popup
-- [x] S6-03 Highlight di export PDF
-- [x] S7-01 Opsi layout export
+- [ ] S5-01 Zoom on slide
+- [ ] S5-02 Search notes
+- [ ] S6-01 Draw highlight box
+- [ ] S6-02 Highlight note popup
+- [ ] S6-03 Highlight di export PDF
+- [ ] S7-01 Opsi layout export
 
 ---
 
@@ -832,7 +832,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 8 — Interaction Polish
 
-### ✅ S8-01: Toolbar Redesign & Draw Mode Behaviour
+### ⬜ S8-01: Toolbar Redesign & Draw Mode Behaviour
 
 Buat branch baru:
 ```
@@ -881,7 +881,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S8-02: Move & Resize Highlight
+### ⬜ S8-02: Move & Resize Highlight
 
 Buat branch baru:
 ```
@@ -934,7 +934,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S8-03: Pan Slide saat Zoom In
+### ⬜ S8-03: Pan Slide saat Zoom In
 
 Buat branch baru:
 ```
@@ -989,7 +989,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ✅ S8-04: Draggable Panel Divider
+### ⬜ S8-04: Draggable Panel Divider
 
 Buat branch baru:
 ```
@@ -1041,10 +1041,207 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Checklist v1.3.0
 
-- [x] S8-01 Toolbar redesign & draw mode
-- [x] S8-02 Move & resize highlight
-- [x] S8-03 Pan slide saat zoom in
-- [x] S8-04 Draggable panel divider
+- [ ] S8-01 Toolbar redesign & draw mode
+- [ ] S8-02 Move & resize highlight
+- [ ] S8-03 Pan slide saat zoom in
+- [ ] S8-04 Draggable panel divider
+
+---
+
+*Update status task (⬜ → ✅) setiap kali task selesai dan di-merge ke develop.*
+
+---
+
+## Sprint 9 — Bug Fixes & Home Screen
+
+### ⬜ S9-01: Slide Fit to Page + Smooth Panel Resize
+
+Buat branch baru:
+```
+git checkout -b feature/S9-01-panel-resize-fix
+```
+
+**Scope:**
+
+**Bug 1 — Slide tidak fit to page saat panel di-resize:**
+
+Slide viewer harus selalu fit di area tengah yang tersedia — bukan ukuran fixed.
+
+1. `src/components/SlideViewer.jsx`:
+   - Canvas container harus `width: 100%` dan `height: 100%` mengisi panel tengah
+   - Setiap kali panel resize → re-render slide ke canvas dengan dimensi baru
+   - Gunakan `ResizeObserver` pada container slide untuk detect perubahan ukuran
+   - `renderPage()` dipanggil ulang saat ukuran container berubah
+   - Slide selalu fit (scale to fit width atau height, mana yang lebih kecil)
+
+2. `src/App.jsx`:
+   - Panel tengah: `flex: 1` — mengisi sisa ruang setelah thumbnail (~220px) dan notes panel
+
+**Bug 2 — Panel resize tidak smooth:**
+
+1. `src/components/PanelDivider.jsx` — fix drag logic:
+   - Gunakan `pointermove` + `setPointerCapture` instead of `mousemove` di document
+   - Hitung delta dari `containerWidth` bukan dari window width
+   - Throttle update dengan `requestAnimationFrame` untuk smooth rendering
+
+2. `src/App.jsx`:
+   - Tambah `ref` ke container utama untuk dapat width yang akurat saat drag
+   - Kalkulasi: `newWidth = (containerWidth - dividerX) / containerWidth * 100`
+
+**Verify:**
+- Drag divider kanan → notes panel melebar, slide mengecil dan tetap fit
+- Drag divider kiri → notes panel menyempit, slide membesar dan tetap fit
+- Drag terasa smooth tanpa jank atau lag
+- Slide selalu centered dan fit di area tengah
+- Resize window → slide ikut menyesuaikan
+
+**Setelah selesai:**
+Commit: `"fix(S9-01): slide fit to page and smooth panel resize"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S9-02: Hapus Highlight via Keyboard
+
+Buat branch baru:
+```
+git checkout -b feature/S9-02-highlight-delete`
+```
+
+**Scope:**
+
+Saat highlight di-select (klik di atas highlight saat Cursor tool aktif), user bisa tekan `Delete` atau `Backspace` untuk hapus.
+
+1. `src/components/HighlightOverlay.jsx`:
+   - State `selectedHighlightId: string | null` — set saat user klik highlight
+   - Highlight yang selected: tampil border lebih tebal / outline berbeda dari hover state
+   - Klik di luar highlight → deselect (`selectedHighlightId = null`)
+
+2. Keyboard listener untuk delete:
+   ```js
+   useEffect(() => {
+     const handleKeyDown = (e) => {
+       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedHighlightId) {
+         deleteHighlight(currentIndex, selectedHighlightId);
+         setSelectedHighlightId(null);
+       }
+     };
+     window.addEventListener('keydown', handleKeyDown);
+     return () => window.removeEventListener('keydown', handleKeyDown);
+   }, [selectedHighlightId, currentIndex]);
+   ```
+
+3. **Conflict prevention** — listener aktif hanya saat:
+   - Cursor tool aktif (`activeTool === 'cursor'`)
+   - Tidak ada textarea/input yang sedang focused (notes panel, highlight popup)
+   - Check: `document.activeElement.tagName !== 'TEXTAREA'`
+
+4. Visual selected state:
+   - Border lebih tebal (3px) + warna lebih gelap dari warna highlight
+   - Berbeda dari hover state (yang menampilkan handles)
+
+**Verify:**
+- Cursor tool aktif, klik highlight → highlight ter-select (border berubah)
+- Tekan `Delete` atau `Backspace` → highlight terhapus
+- Klik di luar highlight → deselect, tekan Delete → tidak terjadi apa-apa
+- Sedang ketik di notes panel → `Delete`/`Backspace` tidak hapus highlight
+- Sedang ketik di highlight popup → `Delete`/`Backspace` tidak hapus highlight
+- Draw mode aktif → keyboard delete tidak aktif
+
+**Setelah selesai:**
+Commit: `"feat(S9-02): delete selected highlight via keyboard"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+### ⬜ S9-03: Home Screen + Recent Files + Back Button
+
+Buat branch baru:
+```
+git checkout -b feature/S9-03-home-screen
+```
+
+**Scope:**
+
+**1. Recent files storage — `src/hooks/useRecentFiles.js`:**
+```js
+// localStorage key: 'slidenotes-recent-files'
+// Max 10 file tersimpan
+// Structure:
+[
+  {
+    "path": "/Users/alice/Documents/lecture.pdf",
+    "name": "lecture.pdf",
+    "lastOpened": "2026-05-19T10:00:00Z",
+    "pageCount": 12
+  }
+]
+```
+- `addRecentFile(path, pageCount)` — tambah/update file di list, urutkan by lastOpened
+- `removeRecentFile(path)` — hapus dari list (jika file tidak ditemukan saat dibuka)
+- `recentFiles` — list terurut, max 10
+
+**2. Home screen — `src/components/HomeScreen.jsx`:**
+
+Layout:
+```
+┌─────────────────────────────────────────┐
+│              SlideNotes                 │
+│                                         │
+│   ┌─────────────────────────────────┐   │
+│   │  Drop a PDF here, or            │   │
+│   │  click to browse                │   │
+│   └─────────────────────────────────┘   │
+│                                         │
+│   Recent Files                          │
+│   ┌─────────────────────────────────┐   │
+│   │ 📄 lecture.pdf                  │   │
+│   │    19 May · 12 slides           │   │
+│   ├─────────────────────────────────┤   │
+│   │ 📄 training.pdf                 │   │
+│   │    18 May · 24 slides           │   │
+│   └─────────────────────────────────┘   │
+│                                         │
+│   (kosong jika belum ada recent files)  │
+└─────────────────────────────────────────┘
+```
+
+- Klik recent file → buka PDF + load notes otomatis
+- Jika file tidak ditemukan (dipindah/dihapus) → tampil toast error + hapus dari recent list
+- Section "Recent Files" tidak muncul jika list kosong
+
+**3. Back button — di toolbar saat PDF terbuka:**
+- Tombol `← Home` di kiri toolbar (sebelum Cursor tool)
+- Klik → kembali ke HomeScreen, PDF ditutup, state di-reset
+- Notes sudah auto-saved sebelum navigasi (tidak perlu konfirmasi)
+
+**4. `src/App.jsx` — update:**
+- Render `<HomeScreen />` jika `filePath === null`
+- Render three-column layout jika `filePath` ada
+- Saat file dibuka → `addRecentFile(filePath, pageCount)`
+- Saat back → `setFilePath(null)`, reset semua state
+
+**Verify:**
+- Buka app → HomeScreen tampil dengan DropZone
+- Buka PDF → masuk ke slide viewer
+- Klik `← Home` → kembali ke HomeScreen
+- HomeScreen sekarang tampil recent file yang baru dibuka
+- Klik recent file → PDF terbuka + notes ter-load
+- Buka PDF lain → recent list terupdate, urutan by lastOpened
+- File yang tidak ada lagi → error toast + dihapus dari list
+- Max 10 recent files tersimpan
+
+**Setelah selesai:**
+Commit: `"feat(S9-03): home screen with recent files and back button"`
+Push dan merge ke `develop`. Laporkan hasilnya.
+
+---
+
+## Checklist v1.4.0
+
+- [x] S9-01 Slide fit to page + smooth panel resize
+- [x] S9-02 Hapus highlight via keyboard
+- [x] S9-03 Home screen + recent files + back button
 
 ---
 
