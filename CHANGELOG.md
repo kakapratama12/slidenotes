@@ -6,6 +6,16 @@ Format: [Semantic Versioning](https://semver.org) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.4.1] — 2026-05 — Patch
+
+### Fixed
+- Pan clamp simetris — bisa pan ke semua arah saat zoom in
+- 2 jari swipe trackpad → pan slide saat zoom > 100%
+- Pinch zoom smooth via requestAnimationFrame
+- Highlight resize jump on first drag
+
+---
+
 ## [1.4.0] — 2026-05 — Bug Fixes & Home Screen
 
 ### Added
