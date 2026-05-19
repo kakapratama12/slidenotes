@@ -1,7 +1,41 @@
+import { useState } from 'react';
+import DropZone from './components/DropZone.jsx';
+
 function App() {
+  const [filePath, setFilePath] = useState(null);
+  const [pageCount, setPageCount] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [notes, setNotes] = useState({});
+  const [saveStatus, setSaveStatus] = useState('saved');
+
+  if (filePath === null) {
+    return <DropZone onFileSelected={setFilePath} />;
+  }
+
   return (
-    <div className="text-red-500">
-      SlideNotes
+    <div className="flex h-screen bg-slate-100">
+      <aside className="w-[220px] shrink-0 border-r border-slate-200 bg-white p-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Thumbnails
+        </p>
+      </aside>
+
+      <main className="flex min-w-0 flex-1 flex-col border-r border-slate-200 bg-white p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Slide Viewer
+        </p>
+        <p className="mt-2 truncate text-sm text-slate-600">{filePath}</p>
+      </main>
+
+      <aside className="w-[35%] max-w-md shrink-0 bg-white p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+          Notes Panel
+        </p>
+        <p className="mt-2 text-sm text-slate-400">
+          Slide {currentIndex + 1}
+          {pageCount > 0 ? ` / ${pageCount}` : ''} · {saveStatus}
+        </p>
+      </aside>
     </div>
   );
 }

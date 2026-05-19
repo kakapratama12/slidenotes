@@ -133,7 +133,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ## Sprint 2 — Slide Viewing
 
-### ⬜ S2-01: File Open & State
+### ✅ S2-01: File Open & State
 
 Buat branch baru:
 ```
@@ -475,7 +475,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 - [x] S1-01 Project scaffold
 - [x] S1-02 IPC bridge
-- [ ] S2-01 File open
+- [x] S2-01 File open
 - [ ] S2-02 Slide rendering
 - [ ] S2-03 Thumbnail sidebar
 - [ ] S3-01 Notes panel + auto-save
