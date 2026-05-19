@@ -1,6 +1,8 @@
 const LINE_HEIGHT = 14;
 const LIST_INDENT = 16;
 const FONT_SIZE = 10;
+const HIGHLIGHT_ENTRY_INDENT = 52;
+const HIGHLIGHT_DOT_SIZE = 8;
 
 function decodeHtmlEntities(text) {
   return String(text ?? '')
@@ -161,12 +163,77 @@ function pickFont(fonts, run) {
   return fonts.regular;
 }
 
+/**
+ * Word-wrap plain text using font metrics (pdf-lib).
+ */
+function wrapText(text, maxWidth, fontSize, font) {
+  if (!text || !String(text).trim()) {
+    return [];
+  }
+
+  const lines = [];
+  const paragraphs = String(text).split(/\n/);
+
+  for (const paragraph of paragraphs) {
+    if (!paragraph.trim()) {
+      lines.push('');
+      continue;
+    }
+
+    const words = paragraph.split(/\s+/).filter(Boolean);
+    let line = '';
+
+    for (const word of words) {
+      let remaining = word;
+
+      while (remaining) {
+        const candidate = line ? `${line} ${remaining}` : remaining;
+        const width = font.widthOfTextAtSize(candidate, fontSize);
+
+        if (width <= maxWidth) {
+          line = candidate;
+          remaining = '';
+          continue;
+        }
+
+        if (line) {
+          lines.push(line);
+          line = '';
+          continue;
+        }
+
+        let chunk = '';
+        for (const char of remaining) {
+          const next = chunk + char;
+          if (font.widthOfTextAtSize(next, fontSize) > maxWidth && chunk) {
+            lines.push(chunk);
+            chunk = char;
+          } else {
+            chunk = next;
+          }
+        }
+
+        if (chunk) {
+          lines.push(chunk);
+        }
+        remaining = '';
+      }
+    }
+
+    if (line) {
+      lines.push(line);
+    }
+  }
+
+  return lines;
+}
+
 function layoutRunsIntoLines(runs, maxWidth, fontSize, fonts) {
   const lines = [];
   let currentLine = [];
   let currentWidth = 0;
 
-  const pushLine = () => {
+  const pushCurrentLine = () => {
     if (currentLine.length) {
       lines.push(currentLine);
       currentLine = [];
@@ -179,7 +246,7 @@ function layoutRunsIntoLines(runs, maxWidth, fontSize, fonts) {
 
     for (const part of parts) {
       if (part === '\n' || run.break) {
-        pushLine();
+        pushCurrentLine();
         continue;
       }
 
@@ -187,7 +254,26 @@ function layoutRunsIntoLines(runs, maxWidth, fontSize, fonts) {
       const width = font.widthOfTextAtSize(part, fontSize);
 
       if (currentWidth + width > maxWidth && currentLine.length > 0) {
-        pushLine();
+        pushCurrentLine();
+      }
+
+      if (font.widthOfTextAtSize(part, fontSize) > maxWidth) {
+        pushCurrentLine();
+        let chunk = '';
+        for (const char of part) {
+          const next = chunk + char;
+          if (font.widthOfTextAtSize(next, fontSize) > maxWidth && chunk) {
+            lines.push([{ text: chunk, font, bold: run.bold, italic: run.italic }]);
+            chunk = char;
+          } else {
+            chunk = next;
+          }
+        }
+        if (chunk) {
+          currentLine = [{ text: chunk, font, bold: run.bold, italic: run.italic }];
+          currentWidth = font.widthOfTextAtSize(chunk, fontSize);
+        }
+        continue;
       }
 
       currentLine.push({ text: part, font, bold: run.bold, italic: run.italic });
@@ -195,7 +281,7 @@ function layoutRunsIntoLines(runs, maxWidth, fontSize, fonts) {
     }
   }
 
-  pushLine();
+  pushCurrentLine();
   return lines;
 }
 
@@ -206,11 +292,14 @@ function layoutBlocks(blocks, maxWidth, fontSize, fonts) {
     const prefix =
       block.type === 'bullet' ? '• ' : block.type === 'ordered' ? `${block.order}. ` : '';
     const prefixWidth =
-      prefix.length > 0
-        ? fonts.regular.widthOfTextAtSize(prefix, fontSize)
-        : 0;
+      prefix.length > 0 ? fonts.regular.widthOfTextAtSize(prefix, fontSize) : 0;
     const contentWidth = Math.max(40, maxWidth - (block.type === 'paragraph' ? 0 : LIST_INDENT));
-    const lines = layoutRunsIntoLines(block.runs, contentWidth - prefixWidth, fontSize, fonts);
+    const lines = layoutRunsIntoLines(
+      block.runs,
+      Math.max(40, contentWidth - prefixWidth),
+      fontSize,
+      fonts,
+    );
 
     laidOut.push({
       type: block.type,
@@ -233,6 +322,171 @@ function estimateLaidOutHeight(laidOut) {
   }
 
   return height;
+}
+
+function estimateHighlightEntryHeight(entry) {
+  return Math.max(entry.lines.length, 1) * LINE_HEIGHT + 4;
+}
+
+function estimateContentBodyHeight(content) {
+  let height = estimateLaidOutHeight(content.noteLayout);
+
+  if (height === 0) {
+    height = LINE_HEIGHT;
+  }
+
+  if (content.highlightEntries.length > 0) {
+    height += 12 + 18;
+
+    for (const entry of content.highlightEntries) {
+      height += estimateHighlightEntryHeight(entry);
+    }
+  }
+
+  return height;
+}
+
+function getImageRatioForBodyHeight(bodyHeight, { isHalfPage = false } = {}) {
+  const shortThreshold = isHalfPage ? 55 : 100;
+  const mediumThreshold = isHalfPage ? 110 : 200;
+
+  if (bodyHeight < shortThreshold) {
+    return 0.6;
+  }
+
+  if (bodyHeight < mediumThreshold) {
+    return 0.5;
+  }
+
+  return 0.3;
+}
+
+function cloneContent(content) {
+  return {
+    noteLayout: content.noteLayout.map((block) => ({
+      ...block,
+      lines: block.lines.map((line) => [...line]),
+    })),
+    highlightEntries: content.highlightEntries.map((entry) => ({
+      ...entry,
+      lines: [...entry.lines],
+    })),
+  };
+}
+
+function splitNoteBlockLines(block, maxLines) {
+  if (maxLines <= 0) {
+    return { kept: null, rest: block };
+  }
+
+  if (block.lines.length <= maxLines) {
+    return { kept: block, rest: null };
+  }
+
+  return {
+    kept: { ...block, lines: block.lines.slice(0, maxLines) },
+    rest: { ...block, lines: block.lines.slice(maxLines) },
+  };
+}
+
+function splitContentByHeight(content, maxHeight) {
+  if (maxHeight <= 0) {
+    return { first: { noteLayout: [], highlightEntries: [] }, overflow: [cloneContent(content)] };
+  }
+
+  const source = cloneContent(content);
+  const first = { noteLayout: [], highlightEntries: [] };
+  const overflow = [];
+  let bucket = first;
+  let used = 0;
+
+  const startOverflowBucket = () => {
+    const next = { noteLayout: [], highlightEntries: [] };
+    overflow.push(next);
+    bucket = next;
+    used = 0;
+  };
+
+  const fits = (extra) => used + extra <= maxHeight;
+
+  for (const block of source.noteLayout) {
+    let remaining = block;
+
+    while (remaining) {
+      const availableLines = Math.floor((maxHeight - used) / LINE_HEIGHT);
+      if (availableLines <= 0) {
+        startOverflowBucket();
+        continue;
+      }
+
+      const { kept, rest } = splitNoteBlockLines(remaining, availableLines);
+      if (kept) {
+        bucket.noteLayout.push(kept);
+        used += kept.lines.length * LINE_HEIGHT + 2;
+      }
+
+      remaining = rest;
+      if (remaining) {
+        startOverflowBucket();
+      }
+    }
+  }
+
+  if (source.highlightEntries.length > 0) {
+    if (bucket.highlightEntries.length === 0 && bucket.noteLayout.length > 0) {
+      if (!fits(12 + 18)) {
+        startOverflowBucket();
+      } else {
+        used += 12 + 18;
+      }
+    } else if (bucket.highlightEntries.length === 0 && bucket.noteLayout.length === 0) {
+      used += 12 + 18;
+    }
+
+    for (const entry of source.highlightEntries) {
+      const entryHeight = estimateHighlightEntryHeight(entry);
+      if (!fits(entryHeight)) {
+        if (bucket.noteLayout.length || bucket.highlightEntries.length) {
+          startOverflowBucket();
+        } else if (used > 0) {
+          startOverflowBucket();
+        }
+      }
+
+      let lineStart = 0;
+      while (lineStart < entry.lines.length) {
+        const availableLines = Math.max(
+          1,
+          Math.floor((maxHeight - used) / LINE_HEIGHT),
+        );
+        const slice = entry.lines.slice(lineStart, lineStart + availableLines);
+        if (!slice.length) {
+          startOverflowBucket();
+          continue;
+        }
+
+        bucket.highlightEntries.push({
+          number: entry.number,
+          color: entry.color,
+          lines: slice,
+        });
+        used += slice.length * LINE_HEIGHT + 4;
+        lineStart += slice.length;
+
+        if (lineStart < entry.lines.length) {
+          startOverflowBucket();
+        }
+      }
+    }
+  }
+
+  const hasFirst =
+    first.noteLayout.length > 0 || first.highlightEntries.length > 0 || source.noteLayout.length === 0;
+
+  return {
+    first: hasFirst ? first : { noteLayout: [], highlightEntries: [] },
+    overflow,
+  };
 }
 
 function drawLineSegments(page, block, line, lineIndex, { x, y, rgb, fontSize }) {
@@ -303,41 +557,20 @@ function drawLaidOutTextUpward(page, laidOut, { x, startY, rgb, fontSize = FONT_
   return y;
 }
 
-function truncateLaidOut(laidOut, maxHeight) {
-  const next = laidOut.map((block) => ({
-    ...block,
-    lines: block.lines.map((line) => [...line]),
-  }));
-
-  while (estimateLaidOutHeight(next) > maxHeight) {
-    const lastBlock = next[next.length - 1];
-
-    if (!lastBlock) {
-      break;
-    }
-
-    if (lastBlock.lines.length) {
-      lastBlock.lines.pop();
-      if (lastBlock.lines.length === 0) {
-        next.pop();
-      }
-      continue;
-    }
-
-    next.pop();
-  }
-
-  return next;
-}
-
 module.exports = {
   FONT_SIZE,
   LINE_HEIGHT,
   LIST_INDENT,
+  HIGHLIGHT_ENTRY_INDENT,
+  HIGHLIGHT_DOT_SIZE,
+  wrapText,
   parseNoteToBlocks,
   layoutBlocks,
   estimateLaidOutHeight,
+  estimateContentBodyHeight,
+  estimateHighlightEntryHeight,
+  getImageRatioForBodyHeight,
+  splitContentByHeight,
   drawLaidOutText,
   drawLaidOutTextUpward,
-  truncateLaidOut,
 };

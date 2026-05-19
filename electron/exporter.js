@@ -9,24 +9,24 @@ const {
 const {
   FONT_SIZE,
   LINE_HEIGHT,
+  HIGHLIGHT_DOT_SIZE,
+  HIGHLIGHT_ENTRY_INDENT,
   parseNoteToBlocks,
   layoutBlocks,
   estimateLaidOutHeight,
+  estimateContentBodyHeight,
+  getImageRatioForBodyHeight,
+  splitContentByHeight,
+  wrapText,
   drawLaidOutText,
   drawLaidOutTextUpward,
-  truncateLaidOut,
 } = require('./noteHtmlPdf');
 
 const A4_LANDSCAPE = [841.89, 595.28];
 const A4_PORTRAIT = [595.28, 841.89];
 const MARGIN = 40;
-const DEFAULT_IMAGE_RATIO = 0.6;
-const MIN_IMAGE_RATIO = 0.5;
 const HEADING_GAP = 18;
 const SECTION_GAP = 12;
-const HIGHLIGHT_DOT_SIZE = 8;
-const HIGHLIGHT_ENTRY_INDENT = 52;
-const TEXT_MAX_WIDTH = 720;
 const VALID_LAYOUTS = new Set(['1-per-page', '2-per-page', 'notes-only']);
 
 function dataUrlToBuffer(dataUrl) {
@@ -43,36 +43,6 @@ function hexToRgb(hex) {
   }
 
   return rgb(((value >> 16) & 255) / 255, ((value >> 8) & 255) / 255, (value & 255) / 255);
-}
-
-function wrapNoteLines(text, maxChars = 90) {
-  if (!text) {
-    return [];
-  }
-
-  const lines = [];
-  const paragraphs = text.split(/\n/);
-
-  for (const paragraph of paragraphs) {
-    const words = paragraph.split(/\s+/).filter(Boolean);
-    let line = '';
-
-    for (const word of words) {
-      const candidate = line ? `${line} ${word}` : word;
-      if (candidate.length > maxChars && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = candidate;
-      }
-    }
-
-    if (line) {
-      lines.push(line);
-    }
-  }
-
-  return lines;
 }
 
 async function loadFonts(pdfDoc) {
@@ -95,128 +65,82 @@ function getSlideCount(slideImages, notes) {
   return Math.max(imageCount, noteCount);
 }
 
-function buildHighlightEntries(slideData) {
+function getHighlightWrapWidth(maxWidth, fonts, number = 99) {
+  const label = `[${number}]`;
+  const labelWidth = fonts.bold.widthOfTextAtSize(label, FONT_SIZE);
+  return Math.max(
+    40,
+    maxWidth - labelWidth - 6 - HIGHLIGHT_DOT_SIZE - 6,
+  );
+}
+
+function buildHighlightEntries(slideData, fonts, maxWidth) {
   const highlights = slideData?.highlights ?? [];
 
   return sortHighlightsByPosition(highlights)
     .filter((highlight) => String(highlight.note ?? '').trim())
-    .map((highlight) => ({
-      number: getHighlightNumber(highlights, highlight.id),
-      color: highlight.color,
-      lines: wrapNoteLines(`"${String(highlight.note).trim()}"`, 78),
-    }));
+    .map((highlight) => {
+      const number = getHighlightNumber(highlights, highlight.id);
+      const wrapWidth = getHighlightWrapWidth(maxWidth, fonts, number);
+      const quoted = `"${String(highlight.note).trim()}"`;
+
+      return {
+        number,
+        color: highlight.color,
+        lines: wrapText(quoted, wrapWidth, FONT_SIZE, fonts.regular),
+      };
+    });
 }
 
-function buildPageContent(noteText, slideData, fonts, maxWidth = TEXT_MAX_WIDTH) {
+function buildPageContent(noteText, slideData, fonts, maxWidth) {
   const noteBlocks = parseNoteToBlocks(noteText);
   const noteLayout = layoutBlocks(noteBlocks, maxWidth, FONT_SIZE, fonts);
 
   return {
     noteLayout,
-    highlightEntries: buildHighlightEntries(slideData),
+    highlightEntries: buildHighlightEntries(slideData, fonts, maxWidth),
   };
 }
 
-function estimateContentHeight(content) {
-  let height = HEADING_GAP;
-  const noteHeight = estimateLaidOutHeight(content.noteLayout);
-
-  height += noteHeight > 0 ? noteHeight : LINE_HEIGHT;
-
-  if (content.highlightEntries.length > 0) {
-    height += SECTION_GAP + HEADING_GAP;
-
-    for (const entry of content.highlightEntries) {
-      height += Math.max(entry.lines.length, 1) * LINE_HEIGHT + 4;
-    }
+function hasRenderableContent(content) {
+  if (!content) {
+    return false;
   }
 
-  return height;
+  if (content.noteLayout.some((block) => block.lines.length > 0)) {
+    return true;
+  }
+
+  if (content.highlightEntries.some((entry) => entry.lines.length > 0)) {
+    return true;
+  }
+
+  return content.noteLayout.length === 0 && content.highlightEntries.length === 0;
 }
 
-function truncateContent(content, maxHeight) {
-  const next = {
-    noteLayout: content.noteLayout.map((block) => ({
-      ...block,
-      lines: block.lines.map((line) => [...line]),
-    })),
-    highlightEntries: content.highlightEntries.map((entry) => ({
-      ...entry,
-      lines: [...entry.lines],
-    })),
-  };
+function paginateStudyContent(fullContent, firstPageMaxHeight, continuationMaxHeight) {
+  const pages = [];
+  let isFirst = true;
+  const queue = [fullContent];
 
-  while (estimateContentHeight(next) > maxHeight) {
-    const lastEntry = next.highlightEntries[next.highlightEntries.length - 1];
+  while (queue.length > 0) {
+    const chunk = queue.shift();
+    const maxHeight = isFirst ? firstPageMaxHeight : continuationMaxHeight;
+    const { first, overflow } = splitContentByHeight(chunk, maxHeight);
 
-    if (lastEntry?.lines.length) {
-      lastEntry.lines.pop();
-      if (lastEntry.lines.length === 0) {
-        next.highlightEntries.pop();
-      }
-      continue;
+    if (isFirst || hasRenderableContent(first)) {
+      pages.push(first);
     }
 
-    if (next.highlightEntries.length) {
-      next.highlightEntries.pop();
-      continue;
-    }
-
-    if (next.noteLayout.length) {
-      const lastBlock = next.noteLayout[next.noteLayout.length - 1];
-      if (lastBlock.lines.length) {
-        lastBlock.lines.pop();
-        if (lastBlock.lines.length === 0) {
-          next.noteLayout.pop();
-        }
-      } else {
-        next.noteLayout.pop();
-      }
-      continue;
-    }
-
-    break;
+    isFirst = false;
+    queue.push(...overflow);
   }
 
-  if (estimateLaidOutHeight(next.noteLayout) > maxHeight) {
-    next.noteLayout = truncateLaidOut(next.noteLayout, maxHeight);
+  if (pages.length === 0) {
+    pages.push({ noteLayout: [], highlightEntries: [] });
   }
 
-  return next;
-}
-
-function resolveLayout(pageHeight, content, options = {}) {
-  const {
-    minImageRatio = MIN_IMAGE_RATIO,
-    maxImageRatio = DEFAULT_IMAGE_RATIO,
-    footerReserve = 36,
-    textBaseY = MARGIN + 40,
-  } = options;
-
-  const minImageHeight = pageHeight * minImageRatio;
-  const defaultMaxImageHeight = pageHeight * maxImageRatio;
-
-  const maxTextHeightForMinImage =
-    pageHeight - MARGIN - minImageHeight - SECTION_GAP - textBaseY - footerReserve;
-
-  let fittedContent = content;
-  if (estimateContentHeight(content) > maxTextHeightForMinImage) {
-    fittedContent = truncateContent(content, maxTextHeightForMinImage);
-  }
-
-  const contentHeight = estimateContentHeight(fittedContent);
-  const maxImageHeightForText =
-    pageHeight - MARGIN - textBaseY - contentHeight - SECTION_GAP - 8;
-  const imageHeight = Math.max(
-    minImageHeight,
-    Math.min(defaultMaxImageHeight, maxImageHeightForText),
-  );
-
-  return {
-    content: fittedContent,
-    imageHeight,
-    contentHeight,
-  };
+  return pages;
 }
 
 function drawHighlightNumbers(page, {
@@ -352,20 +276,30 @@ function drawHighlightEntryDownward(page, entry, x, y, fonts) {
   return cursorY;
 }
 
-function drawTextBlock(page, { content, totalSlides, index, fonts, textOptions = {} }) {
+function drawTextBlock(page, {
+  content,
+  totalSlides,
+  index,
+  fonts,
+  textOptions = {},
+  continued = false,
+}) {
   const {
     textBaseY = MARGIN + 40,
     footerY = 24,
     showPageFooter = true,
     yOffset = 0,
-    maxWidth = TEXT_MAX_WIDTH,
   } = textOptions;
 
   const baseY = textBaseY + yOffset;
   const slideFooterY = footerY + yOffset;
 
   if (showPageFooter) {
-    page.drawText(`Slide ${index + 1} / ${totalSlides} · SlideNotes`, {
+    const footerLabel = continued
+      ? `Slide ${index + 1} / ${totalSlides} · continued · SlideNotes`
+      : `Slide ${index + 1} / ${totalSlides} · SlideNotes`;
+
+    page.drawText(footerLabel, {
       x: MARGIN,
       y: slideFooterY,
       size: 9,
@@ -406,7 +340,7 @@ function drawTextBlock(page, { content, totalSlides, index, fonts, textOptions =
     });
   }
 
-  page.drawText('Notes:', {
+  page.drawText(continued ? 'Notes (continued):' : 'Notes:', {
     x: MARGIN,
     y: textY,
     size: 12,
@@ -414,39 +348,38 @@ function drawTextBlock(page, { content, totalSlides, index, fonts, textOptions =
   });
 }
 
-async function drawSlideOnPage(page, pdfDoc, {
+async function drawSlideImage(page, pdfDoc, {
   index,
-  totalSlides,
   slideImages,
   notes,
   fonts,
   pageWidth,
+  imageHeight,
+  yOffset,
   pageHeight,
-  layoutOptions,
-  textOptions,
-  yOffset = 0,
 }) {
-  const slideData = notes[String(index)] ?? {};
-  const pageContent = buildPageContent(slideData.note ?? '', slideData, fonts, textOptions.maxWidth);
-  const layout = resolveLayout(pageHeight, pageContent, layoutOptions);
+  if (!slideImages[index]) {
+    return;
+  }
 
+  const slideData = notes[String(index)] ?? {};
   const imageBytes = dataUrlToBuffer(slideImages[index]);
   const image = await pdfDoc.embedPng(imageBytes);
   const imageScale = Math.min(
     (pageWidth - MARGIN * 2) / image.width,
-    layout.imageHeight / image.height,
+    imageHeight / image.height,
   );
   const imageWidth = image.width * imageScale;
-  const imageHeight = image.height * imageScale;
+  const drawnHeight = image.height * imageScale;
   const imageX = (pageWidth - imageWidth) / 2;
   const regionTop = yOffset + pageHeight;
-  const imageY = regionTop - MARGIN - imageHeight;
+  const imageY = regionTop - MARGIN - drawnHeight;
 
   page.drawImage(image, {
     x: imageX,
     y: imageY,
     width: imageWidth,
-    height: imageHeight,
+    height: drawnHeight,
   });
 
   drawHighlightNumbers(page, {
@@ -454,91 +387,180 @@ async function drawSlideOnPage(page, pdfDoc, {
     imageX,
     imageY,
     imageWidth,
-    imageHeight,
+    imageHeight: drawnHeight,
     fonts,
-  });
-
-  drawTextBlock(page, {
-    content: layout.content,
-    totalSlides,
-    index,
-    fonts,
-    textOptions: {
-      ...textOptions,
-      yOffset,
-    },
   });
 }
 
-async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides, fonts }) {
-  for (let index = 0; index < totalSlides; index += 1) {
-    const page = pdfDoc.addPage(A4_LANDSCAPE);
-    const { width, height } = page.getSize();
+async function renderStudySlide(pdfDoc, {
+  index,
+  totalSlides,
+  slideImages,
+  notes,
+  fonts,
+  pageWidth,
+  pageHeight,
+  layoutOptions = {},
+  textOptions = {},
+  yOffset = 0,
+  existingPage = null,
+}) {
+  const maxWidth = textOptions.maxWidth ?? pageWidth - MARGIN * 2;
+  const slideData = notes[String(index)] ?? {};
+  const fullContent = buildPageContent(slideData.note ?? '', slideData, fonts, maxWidth);
 
-    await drawSlideOnPage(page, pdfDoc, {
+  const isHalfPage = layoutOptions.isHalfPage ?? false;
+  const footerReserve = layoutOptions.footerReserve ?? 36;
+  const textBaseY = textOptions.textBaseY ?? MARGIN + 40;
+
+  const bodyHeight = estimateContentBodyHeight(fullContent);
+  const imageRatio = getImageRatioForBodyHeight(bodyHeight, { isHalfPage });
+  const imageHeight = pageHeight * imageRatio;
+
+  const firstPageTextMax =
+    pageHeight -
+    MARGIN -
+    imageHeight -
+    SECTION_GAP -
+    textBaseY -
+    footerReserve -
+    HEADING_GAP;
+
+  const fullPageHeight = A4_LANDSCAPE[1];
+  const continuationTextMax =
+    fullPageHeight -
+    MARGIN -
+    textBaseY -
+    footerReserve -
+    HEADING_GAP -
+    20;
+
+  const textPages = paginateStudyContent(
+    fullContent,
+    Math.max(LINE_HEIGHT * 2, firstPageTextMax),
+    Math.max(LINE_HEIGHT * 2, continuationTextMax),
+  );
+
+  for (let pageIndex = 0; pageIndex < textPages.length; pageIndex += 1) {
+    const chunk = textPages[pageIndex];
+    const isFirstPage = pageIndex === 0;
+    const continued = pageIndex > 0;
+    let page;
+    let effectivePageHeight;
+    let effectiveYOffset;
+
+    if (isFirstPage && existingPage) {
+      page = existingPage;
+      effectivePageHeight = pageHeight;
+      effectiveYOffset = yOffset;
+    } else {
+      page = pdfDoc.addPage(A4_LANDSCAPE);
+      effectivePageHeight = fullPageHeight;
+      effectiveYOffset = 0;
+    }
+
+    if (isFirstPage && slideImages[index]) {
+      await drawSlideImage(page, pdfDoc, {
+        index,
+        slideImages,
+        notes,
+        fonts,
+        pageWidth,
+        imageHeight,
+        yOffset: effectiveYOffset,
+        pageHeight: effectivePageHeight,
+      });
+    }
+
+    drawTextBlock(page, {
+      content: chunk,
+      totalSlides,
+      index,
+      fonts,
+      continued,
+      textOptions: {
+        ...textOptions,
+        yOffset: effectiveYOffset,
+        textBaseY: continued ? MARGIN + 48 : textBaseY,
+        footerY: continued ? 24 : textOptions.footerY ?? 24,
+      },
+    });
+  }
+}
+
+async function exportOnePerPage(pdfDoc, { slideImages, notes, totalSlides, fonts }) {
+  const pageWidth = A4_LANDSCAPE[0];
+
+  for (let index = 0; index < totalSlides; index += 1) {
+    await renderStudySlide(pdfDoc, {
       index,
       totalSlides,
       slideImages,
       notes,
       fonts,
-      pageWidth: width,
-      pageHeight: height,
-      textOptions: { showPageFooter: true },
+      pageWidth,
+      pageHeight: A4_LANDSCAPE[1],
+      textOptions: {
+        showPageFooter: true,
+        maxWidth: pageWidth - MARGIN * 2,
+      },
     });
   }
 }
 
 async function exportTwoPerPage(pdfDoc, { slideImages, notes, totalSlides, fonts }) {
+  const pageWidth = A4_LANDSCAPE[0];
+  const pageHeight = A4_LANDSCAPE[1];
+  const halfHeight = pageHeight / 2;
+
   const halfLayoutOptions = {
-    minImageRatio: 0.32,
-    maxImageRatio: 0.46,
+    isHalfPage: true,
     footerReserve: 22,
-    textBaseY: MARGIN + 28,
   };
 
   const halfTextOptions = {
     textBaseY: MARGIN + 28,
     footerY: 12,
     showPageFooter: true,
-    maxWidth: 360,
+    maxWidth: pageWidth - MARGIN * 2,
   };
 
   for (let index = 0; index < totalSlides; index += 2) {
     const page = pdfDoc.addPage(A4_LANDSCAPE);
-    const { width, height } = page.getSize();
-    const halfHeight = height / 2;
 
-    await drawSlideOnPage(page, pdfDoc, {
+    await renderStudySlide(pdfDoc, {
       index,
       totalSlides,
       slideImages,
       notes,
       fonts,
-      pageWidth: width,
+      pageWidth,
       pageHeight: halfHeight,
       layoutOptions: halfLayoutOptions,
       textOptions: halfTextOptions,
       yOffset: halfHeight,
+      existingPage: page,
     });
 
     if (index + 1 < totalSlides) {
-      await drawSlideOnPage(page, pdfDoc, {
+      await renderStudySlide(pdfDoc, {
         index: index + 1,
         totalSlides,
         slideImages,
         notes,
         fonts,
-        pageWidth: width,
+        pageWidth,
         pageHeight: halfHeight,
         layoutOptions: halfLayoutOptions,
         textOptions: halfTextOptions,
         yOffset: 0,
+        existingPage: page,
       });
     }
 
     page.drawLine({
       start: { x: MARGIN, y: halfHeight },
-      end: { x: width - MARGIN, y: halfHeight },
+      end: { x: pageWidth - MARGIN, y: halfHeight },
       thickness: 0.5,
       color: rgb(0.82, 0.82, 0.82),
     });
@@ -622,10 +644,11 @@ async function exportNotesOnly(pdfDoc, { notes, totalSlides, fonts }) {
   let page = pdfDoc.addPage(A4_PORTRAIT);
   let { width, height } = page.getSize();
   let y = height - MARGIN;
+  const maxWidth = width - MARGIN * 2;
 
   for (let index = 0; index < totalSlides; index += 1) {
     const slideData = notes[String(index)] ?? {};
-    const content = buildPageContent(slideData.note ?? '', slideData, fonts);
+    const content = buildPageContent(slideData.note ?? '', slideData, fonts, maxWidth);
     const blockHeight = estimateNotesOnlyBlockHeight(content);
 
     if (y - blockHeight < MARGIN + 40) {
