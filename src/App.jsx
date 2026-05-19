@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import HomeScreen from './components/HomeScreen.jsx';
 import HighlightNotesPanel from './components/HighlightNotesPanel.jsx';
+import ZoomThumbnailOverlay from './components/ZoomThumbnailOverlay.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import PanelDivider from './components/PanelDivider.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
@@ -500,7 +501,15 @@ function App() {
               className="flex min-h-0 flex-col overflow-hidden p-4"
               style={{ flex: `${ZOOM_SLIDE_PANEL_FLEX} 1 0%` }}
             >
-              {slideViewer}
+              <ZoomThumbnailOverlay
+                pageCount={pageCount}
+                currentIndex={currentIndex}
+                loading={loading}
+                onSelect={goTo}
+                renderThumbnail={renderThumbnail}
+              >
+                {slideViewer}
+              </ZoomThumbnailOverlay>
             </main>
 
             <div
@@ -522,6 +531,9 @@ function App() {
                 selectedHighlightId={selectedHighlightId}
                 listFocusHighlightId={listFocusHighlightId}
                 onSelectHighlight={handleHighlightListSelect}
+                onSelectHighlightQuiet={(highlightId) =>
+                  handleSelectHighlight(highlightId, { flash: false, focusList: false })
+                }
                 onUpdateHighlightNote={handleUpdateHighlightNote}
                 listRef={highlightListRef}
               />

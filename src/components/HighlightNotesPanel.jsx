@@ -7,6 +7,7 @@ export default function HighlightNotesPanel({
   selectedHighlightId,
   listFocusHighlightId,
   onSelectHighlight,
+  onSelectHighlightQuiet,
   onUpdateHighlightNote,
   listRef,
 }) {
@@ -24,6 +25,7 @@ export default function HighlightNotesPanel({
         selectedHighlightId={selectedHighlightId}
         listFocusHighlightId={listFocusHighlightId}
         onSelectHighlight={onSelectHighlight}
+        onSelectHighlightQuiet={onSelectHighlightQuiet}
         onUpdateHighlightNote={onUpdateHighlightNote}
       />
     </aside>

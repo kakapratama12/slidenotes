@@ -82,6 +82,7 @@ function ThumbnailItem({
 }
 
 export default function ThumbnailBar({
+  variant = 'sidebar',
   pageCount,
   currentIndex,
   loading,
@@ -90,6 +91,7 @@ export default function ThumbnailBar({
 }) {
   const scrollRef = useRef(null);
   const [scrollRoot, setScrollRoot] = useState(null);
+  const isOverlay = variant === 'overlay';
 
   useEffect(() => {
     setScrollRoot(scrollRef.current);
@@ -97,7 +99,13 @@ export default function ThumbnailBar({
 
   if (loading) {
     return (
-      <aside className="flex h-full min-h-0 w-[220px] shrink-0 flex-col border-r border-slate-200 bg-white p-3">
+      <aside
+        className={
+          isOverlay
+            ? 'flex h-full min-h-0 w-full flex-col bg-white p-3'
+            : 'flex h-full min-h-0 w-[220px] shrink-0 flex-col border-r border-slate-200 bg-white p-3'
+        }
+      >
         <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
           Thumbnails
         </p>
@@ -107,7 +115,13 @@ export default function ThumbnailBar({
   }
 
   return (
-    <aside className="flex h-full min-h-0 w-[220px] shrink-0 flex-col border-r border-slate-200 bg-white">
+    <aside
+      className={
+        isOverlay
+          ? 'flex h-full min-h-0 w-full flex-col bg-white'
+          : 'flex h-full min-h-0 w-[220px] shrink-0 flex-col border-r border-slate-200 bg-white'
+      }
+    >
       <p className="border-b border-slate-100 px-3 py-3 text-xs font-medium uppercase tracking-wide text-slate-500">
         Thumbnails
       </p>

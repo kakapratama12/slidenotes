@@ -30,12 +30,14 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
     selectedHighlightId,
     listFocusHighlightId,
     onSelectHighlight,
+    onSelectHighlightQuiet,
     onUpdateHighlightNote,
   },
   ref,
 ) {
   const itemRefs = useRef({});
   const textareaRefs = useRef({});
+  const skipBlurCommitRef = useRef(false);
   const [editingId, setEditingId] = useState(null);
   const [draftNotes, setDraftNotes] = useState({});
 
@@ -75,7 +77,8 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
   }, [listFocusHighlightId]);
 
   const startEditing = (highlight) => {
-    onSelectHighlight(highlight.id);
+    skipBlurCommitRef.current = true;
+    (onSelectHighlightQuiet ?? onSelectHighlight)(highlight.id);
     setEditingId(highlight.id);
     setDraftNotes((prev) => ({
       ...prev,
@@ -95,6 +98,11 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
   };
 
   const handleNoteBlur = (highlightId) => {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false;
+      return;
+    }
+
     const note = draftNotes[highlightId] ?? '';
     commitNote(highlightId, note);
   };
@@ -104,7 +112,13 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
       return;
     }
 
-    textareaRefs.current[editingId]?.focus();
+    const frame = requestAnimationFrame(() => {
+      const textarea = textareaRefs.current[editingId];
+      textarea?.focus();
+      skipBlurCommitRef.current = false;
+    });
+
+    return () => cancelAnimationFrame(frame);
   }, [editingId]);
 
   if (sortedHighlights.length === 0) {
@@ -129,20 +143,21 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                   delete itemRefs.current[highlight.id];
                 }
               }}
-              role="button"
-              tabIndex={0}
-              onClick={() => onSelectHighlight(highlight.id)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  onSelectHighlight(highlight.id);
-                }
-              }}
-              className={`flex w-full cursor-pointer gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
+              className={`flex w-full gap-3 rounded-lg border p-3 text-left text-sm transition-colors ${
                 isSelected
                   ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-200'
                   : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
+              } ${isEditing ? '' : 'cursor-pointer'}`}
+              onClick={
+                isEditing
+                  ? undefined
+                  : () => onSelectHighlight(highlight.id)
+              }
+              onMouseDown={(event) => {
+                if (isEditing) {
+                  event.stopPropagation();
+                }
+              }}
             >
               <span
                 className="mt-1 h-4 w-4 shrink-0 rounded-full border border-slate-300"
@@ -167,6 +182,8 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
                     saveNoteDebounced(highlight.id, nextNote);
                   }}
                   onBlur={() => handleNoteBlur(highlight.id)}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onPointerDown={(event) => event.stopPropagation()}
                   onClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => event.stopPropagation()}
                   placeholder="Add a note..."
@@ -176,9 +193,14 @@ const HighlightNotesList = forwardRef(function HighlightNotesList(
               ) : (
                 <button
                   type="button"
-                  onClick={(event) => {
+                  onMouseDown={(event) => {
+                    event.preventDefault();
                     event.stopPropagation();
                     startEditing(highlight);
+                  }}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
                   }}
                   className={`min-w-0 flex-1 rounded p-1.5 text-left text-sm outline-none hover:bg-slate-50 focus-visible:ring-1 focus-visible:ring-blue-500 ${
                     displayNote ? 'text-slate-700' : 'text-slate-400'
