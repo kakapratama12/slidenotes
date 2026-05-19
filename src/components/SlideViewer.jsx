@@ -42,7 +42,7 @@ const SlideViewer = forwardRef(function SlideViewer(
   useImperativeHandle(
     ref,
     () => ({
-      captureSlide: (index) => captureSlide(index),
+      captureSlide: (index, highlights) => captureSlide(index, highlights),
     }),
     [captureSlide],
   );

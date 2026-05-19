@@ -1,5 +1,6 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { drawHighlightsOnCanvas } from '../utils/drawHighlights.js';
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 3.0;
@@ -128,7 +129,7 @@ export function useSlides(filePath) {
     await page.render({ canvasContext: context, viewport }).promise;
   }, []);
 
-  const captureSlide = useCallback(async (index) => {
+  const captureSlide = useCallback(async (index, highlights = []) => {
     const pdf = pdfDocRef.current;
     if (!pdf) {
       return null;
@@ -143,10 +144,14 @@ export function useSlides(filePath) {
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
+    const context = canvas.getContext('2d');
+
     await page.render({
-      canvasContext: canvas.getContext('2d'),
+      canvasContext: context,
       viewport,
     }).promise;
+
+    drawHighlightsOnCanvas(context, highlights, canvas.width, canvas.height);
 
     return canvas.toDataURL('image/png');
   }, []);

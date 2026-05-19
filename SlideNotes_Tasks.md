@@ -702,7 +702,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S6-03: Highlight di Export PDF
+### ✅ S6-03: Highlight di Export PDF
 
 Buat branch baru:
 ```
@@ -810,7 +810,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 - [x] S5-02 Search notes
 - [x] S6-01 Draw highlight box
 - [x] S6-02 Highlight note popup
-- [ ] S6-03 Highlight di export PDF
+- [x] S6-03 Highlight di export PDF
 - [ ] S7-01 Opsi layout export
 
 ---

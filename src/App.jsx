@@ -158,7 +158,8 @@ function App() {
       const slideImages = [];
 
       for (let index = 0; index < pageCount; index += 1) {
-        const image = await slideViewerRef.current.captureSlide(index);
+        const highlights = notes[String(index)]?.highlights ?? [];
+        const image = await slideViewerRef.current.captureSlide(index, highlights);
         slideImages.push(image);
       }
 
