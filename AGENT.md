@@ -92,6 +92,7 @@ All IPC channels are defined in `electron/preload.js` and handled in `electron/m
 | `open-file-dialog` | renderer → main | — | `string \| null` (file path) |
 | `load-notes` | renderer → main | `filePath: string` | `NotesFile \| null` |
 | `save-notes` | renderer → main | `{ filePath, notes }` | `{ ok: boolean }` |
+| `read-pdf-file` | renderer → main | `filePath: string` | `ArrayBuffer` (file bytes) |
 | `export-pdf` | renderer → main | `{ filePath, slideImages, notes }` | `{ ok: boolean, exportPath: string }` |
 
 Preload pattern — always use `contextBridge.exposeInMainWorld`:
@@ -104,6 +105,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openFileDialog: () => ipcRenderer.invoke('open-file-dialog'),
   loadNotes: (filePath) => ipcRenderer.invoke('load-notes', filePath),
   saveNotes: (filePath, notes) => ipcRenderer.invoke('save-notes', { filePath, notes }),
+  readPdfFile: (filePath) => ipcRenderer.invoke('read-pdf-file', filePath),
   exportPdf: (filePath, slideImages, notes) => ipcRenderer.invoke('export-pdf', { filePath, slideImages, notes }),
 });
 ```
