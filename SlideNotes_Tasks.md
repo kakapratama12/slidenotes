@@ -554,7 +554,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S5-02: Search Notes
+### ✅ S5-02: Search Notes
 
 Buat branch baru:
 ```
@@ -807,7 +807,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 ## Checklist v1.1
 
 - [x] S5-01 Zoom on slide
-- [ ] S5-02 Search notes
+- [x] S5-02 Search notes
 - [ ] S6-01 Draw highlight box
 - [ ] S6-02 Highlight note popup
 - [ ] S6-03 Highlight di export PDF

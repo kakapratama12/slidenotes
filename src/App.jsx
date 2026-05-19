@@ -3,6 +3,7 @@ import DropZone from './components/DropZone.jsx';
 import NotesPanel from './components/NotesPanel.jsx';
 import SlideViewer from './components/SlideViewer.jsx';
 import ThumbnailBar from './components/ThumbnailBar.jsx';
+import SearchPanel from './components/SearchPanel.jsx';
 import Toast from './components/Toast.jsx';
 import { useNotes } from './hooks/useNotes.js';
 import { useSlides } from './hooks/useSlides.js';
@@ -16,6 +17,7 @@ function App() {
   const [exportStatus, setExportStatus] = useState('idle');
   const [exportMessage, setExportMessage] = useState('');
   const [toastMessage, setToastMessage] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const slideViewerRef = useRef(null);
 
   const {
@@ -89,6 +91,18 @@ function App() {
       setToastMessage(exportMessage);
     }
   }, [exportStatus, exportMessage]);
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.metaKey && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleTryAnotherFile = () => {
     setFilePath(null);
@@ -174,6 +188,13 @@ function App() {
           exportMessage={exportMessage}
         />
       </div>
+
+      <SearchPanel
+        isOpen={searchOpen}
+        notes={notes}
+        onClose={() => setSearchOpen(false)}
+        onSelectResult={goTo}
+      />
 
       <Toast
         message={toastMessage}
