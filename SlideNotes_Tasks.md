@@ -82,7 +82,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 
 ---
 
-### ⬜ S1-02: IPC Bridge
+### ✅ S1-02: IPC Bridge
 
 Buat branch baru:
 ```
@@ -474,7 +474,7 @@ Push dan merge ke `develop`. Laporkan hasilnya.
 ## Checklist MVP
 
 - [x] S1-01 Project scaffold
-- [ ] S1-02 IPC bridge
+- [x] S1-02 IPC bridge
 - [ ] S2-01 File open
 - [ ] S2-02 Slide rendering
 - [ ] S2-03 Thumbnail sidebar
