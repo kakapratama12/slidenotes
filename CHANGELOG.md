@@ -6,6 +6,27 @@ Format: [Semantic Versioning](https://semver.org) — MAJOR.MINOR.PATCH
 
 ---
 
+## [1.5.0] — 2026-05 — Sprint 10
+
+### Added
+- Layout switcher: default 3-kolom ↔ zoom mode (top-bottom)
+- Thumbnail overlay di zoom mode (hover reveal, scroll horizontal)
+- Rich text notes editor (bold, italic, underline, bullet, numbered list)
+- Highlight numbering system (auto-assign by position)
+- Highlight Notes panel (zoom mode, kanan bawah)
+- Auto-insert [N] marker saat highlight baru dibuat
+
+### Fixed
+- Minimum window size diturunkan ke 800×600 (side-by-side friendly)
+- Highlight jump on first drag di zoom mode
+- Badge nomor highlight tidak terlihat
+- HL note edit langsung close
+- HL note text overflow ke kanan
+- PDF export text wrap dan dynamic height
+- PDF notes sangat panjang → halaman overflow
+
+---
+
 ## [1.4.1] — 2026-05 — Patch
 
 ### Fixed
